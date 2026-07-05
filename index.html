@@ -843,8 +843,17 @@ function setUpdated(){
     el.style.display='inline';
   }
 }
+// Fetch with a timeout — prevents the app from hanging forever on a stalled request.
+async function fetchWithTimeout(url,ms=8000,opts={}){
+  const ctrl=new AbortController();
+  const t=setTimeout(()=>ctrl.abort(),ms);
+  try{
+    const r=await fetch(url,{...opts,signal:ctrl.signal});
+    return r;
+  } finally { clearTimeout(t); }
+}
 async function slGet(path){
-  const r=await fetch(API+path);
+  const r=await fetchWithTimeout(API+path,8000);
   if(!r.ok) throw new Error(r.status);
   return r.json();
 }
@@ -953,35 +962,87 @@ async function loadTx(lid){
   const res=await Promise.all([1,2,3,4].map(w=>slGet(`/league/${lid}/transactions/${w}`).catch(()=>[])));
   [1,2,3,4].forEach((w,i)=>transactions[w]=res[i]||[]);
 }
+// Collect all unique player IDs we care about across rosters + matchups
+function collectPlayerIds(){
+  const ids=new Set();
+  rosters.forEach(r=>{
+    (r.players||[]).forEach(id=>ids.add(id));
+    (r.taxi||[]).forEach(id=>ids.add(id));
+    (r.reserve||[]).forEach(id=>ids.add(id));
+  });
+  Object.values(matchups).forEach(wk=>{
+    (wk||[]).forEach(m=>{
+      (m.starters||[]).forEach(id=>ids.add(id));
+      if(m.players_points) Object.keys(m.players_points).forEach(id=>ids.add(id));
+    });
+  });
+  ids.delete('0');
+  return ids;
+}
+
+// Player DB is huge (~5MB). Cache it for 24h in localStorage so return visits are instant.
+// TTL is aggressive because player names rarely change and stale data isn't catastrophic.
+const PLAYER_CACHE_KEY='mg_players_v1';
+const PLAYER_CACHE_TTL=24*60*60*1000;// 24 hours
+
+function loadPlayersFromCache(){
+  try{
+    const raw=localStorage.getItem(PLAYER_CACHE_KEY);
+    if(!raw)return null;
+    const {t,data}=JSON.parse(raw);
+    if(Date.now()-t>PLAYER_CACHE_TTL)return null;
+    return data;
+  }catch(e){return null;}
+}
+
+function savePlayersToCache(minPlayers){
+  try{
+    localStorage.setItem(PLAYER_CACHE_KEY,JSON.stringify({t:Date.now(),data:minPlayers}));
+  }catch(e){/* quota exceeded — skip */}
+}
+
 async function loadPlayers(){
   setStatus('loading','Loading player names...');
+  const ids=collectPlayerIds();
+  if(ids.size===0){ players={}; return; }
+
+  // 1. Try cache first — instant if we have a fresh copy
+  const cached=loadPlayersFromCache();
+  if(cached){
+    players={};
+    ids.forEach(id=>{ if(cached[id]) players[id]=cached[id]; });
+    // If cache covers all IDs we need, we're done. Otherwise fall through to fetch missing.
+    const missing=[...ids].filter(id=>!players[id]);
+    if(missing.length===0)return;
+  }
+
+  // 2. Fetch full DB with a generous timeout (this endpoint returns 5MB+)
   try{
-    // Collect unique player IDs across all rosters (players + taxi + reserve)
-    const ids=new Set();
-    rosters.forEach(r=>{
-      (r.players||[]).forEach(id=>ids.add(id));
-      (r.taxi||[]).forEach(id=>ids.add(id));
-      (r.reserve||[]).forEach(id=>ids.add(id));
-    });
-    // Also grab any player IDs seen in matchup data
-    Object.values(matchups).forEach(wk=>{
-      (wk||[]).forEach(m=>{
-        (m.starters||[]).forEach(id=>ids.add(id));
-        if(m.players_points) Object.keys(m.players_points).forEach(id=>ids.add(id));
-      });
-    });
-    ids.delete('0'); // Sleeper uses '0' for empty roster slots
-
-    if(ids.size===0){ players={}; return; }
-
-    // Sleeper provides a bulk lookup endpoint
-    const r=await fetch(`${API}/players/nfl`);
+    const r=await fetchWithTimeout(`${API}/players/nfl`,20000);
     if(r.ok){
       const all=await r.json();
+      // Build a slim map with only the fields we actually use — keeps cache small
+      const minPlayers={};
+      Object.keys(all).forEach(id=>{
+        const p=all[id];
+        if(!p)return;
+        minPlayers[id]={
+          first_name:p.first_name||'',
+          last_name:p.last_name||'',
+          full_name:p.full_name||'',
+          position:p.position||'',
+          team:p.team||'',
+        };
+      });
+      // Cache the full slim db so next visit hits cache path
+      savePlayersToCache(minPlayers);
       players={};
-      ids.forEach(id=>{ if(all[id]) players[id]=all[id]; });
+      ids.forEach(id=>{ if(minPlayers[id]) players[id]=minPlayers[id]; });
     }
-  }catch(e){ players={}; }
+  }catch(e){
+    console.warn('players fetch failed or timed out — proceeding without',e);
+    players=players||{};
+  }
 }
 async function loadSheets(){
   setStatus('loading','Loading sheet data...');
@@ -1000,21 +1061,25 @@ async function loadLive(){
   setStatus('loading','Connecting to Sleeper...');
   splashStatus('Connecting to Sleeper...');
   try{
-    // Load the league itself first — everything else needs rosters to exist
+    // League metadata first — everything else needs rosters/users to exist
     await loadLeague(LIVE_ID);
     splashStatus('Loading matchups & sheets...');
-    // These four don't depend on each other; run them in parallel
+    // Matchups, transactions, and Google Sheets are independent — run in parallel
     await Promise.all([
       loadMatchups(LIVE_ID),
       loadTx(LIVE_ID),
       loadSheets(),
     ]);
-    splashStatus('Loading players...');
-    // Players needs matchups to have loaded (uses starter IDs), so it's last
-    await loadPlayers();
+    // Build the dashboard NOW — player names aren't required for most of it.
+    // We'll refresh once players arrive so anywhere a name appears is filled in.
     setStatus('ok',`✓ Live · ${users.length} teams`);
     setUpdated();
     buildAll();
+    // Fetch players in the background — don't await, don't block the UI
+    loadPlayers().then(()=>{
+      // Re-render anything that shows player names now that we have them
+      try{ buildAll(); }catch(e){}
+    }).catch(e=>console.warn('players load failed',e));
   }catch(e){
     setStatus('err','Could not connect — try refreshing');
     splashStatus('Could not connect. Try refreshing the page.');
@@ -2595,6 +2660,17 @@ function startApp(){
 
 // Kick everything off
 bootstrapLeague();
+
+// Safety net: if something hangs, force-hide the splash after 15s so the user
+// can at least see whatever partial state loaded.
+setTimeout(()=>{
+  const el=document.getElementById('splashOverlay');
+  if(el && !el.classList.contains('hide')){
+    console.warn('splash still visible after 15s — forcing hide');
+    el.classList.add('hide');
+    setTimeout(()=>{el.style.display='none';},400);
+  }
+},15000);
 </script>
 
 <!-- FOOTER STATUS BAR -->
