@@ -1,0 +1,8 @@
+[
+  {
+    "slug": "dynasty",
+    "name": "The Dynasty",
+    "tagline": "Dynasty · Superflex · 10 team",
+    "config": "configs/dynasty.json"
+  }
+]
