@@ -720,8 +720,6 @@ function showConfigError(msg){
   overlay.classList.add('open');
 }
 
-// Bootstrap: figure out which league to load, then start the app
-async 
 function splashStatus(txt){const el=document.getElementById('splashStatus');if(el)el.textContent=txt;}
 function hideSplash(){const el=document.getElementById('splashOverlay');if(!el)return;el.classList.add('hide');setTimeout(()=>{el.style.display='none';},400);}
 
