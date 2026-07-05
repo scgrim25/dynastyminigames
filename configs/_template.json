@@ -1,0 +1,46 @@
+{
+  "slug": "your-league-slug",
+  "leagueName": "Your League Name",
+  "season": "2026",
+  "storeKey": "minigames_yourleague_2026",
+
+  "liveId": "YOUR_SLEEPER_LEAGUE_ID",
+  "testId": "OPTIONAL_TEST_LEAGUE_ID",
+
+  "seasons": [
+    {"year": 2026, "id": "YOUR_2026_LEAGUE_ID"}
+  ],
+
+  "sheets": {
+    "tactician":     "CSV_PUBLISH_URL_FOR_TACTICIAN_TAB",
+    "long_game":     "CSV_PUBLISH_URL_FOR_LONG_GAME_TAB",
+    "sleeper_picks": "CSV_PUBLISH_URL_FOR_SLEEPER_PICKS_TAB",
+    "receipts":      "CSV_PUBLISH_URL_FOR_RECEIPTS_TAB",
+    "meta":          "CSV_PUBLISH_URL_FOR_META_TAB"
+  },
+
+  "receiptsForm": {
+    "action": "GOOGLE_FORM_ACTION_URL",
+    "fields": {
+      "name":       "entry.XXXXXXX",
+      "player":     "entry.XXXXXXX",
+      "prediction": "entry.XXXXXXX"
+    }
+  },
+
+  "week1Date": "2026-09-04",
+
+  "tyreekRecord": 64.9,
+  "tyreekHolder": "Tyreek Hill",
+  "tyreekWeek": 12,
+  "tyreekYear": 2020,
+  "tyreekBasePayout": 15,
+
+  "deadlines": [
+    {"id":"longgame", "label":"Long Game Nominations", "gameId":"longgame", "date":"2026-09-06T12:00:00-04:00"},
+    {"id":"sleeper",  "label":"Sleeper Declarations",  "gameId":"sleeper",  "date":"2026-10-08T20:15:00-04:00"},
+    {"id":"receipts", "label":"Receipts Predictions",  "gameId":"receipts", "date":"2026-11-26T12:30:00-05:00"}
+  ],
+
+  "nameAliases": {}
+}
