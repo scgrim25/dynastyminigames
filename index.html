@@ -408,6 +408,19 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(45
 .skel-row{height:52px;margin:8px 0;}
 .skel-card{height:120px;}
 
+/* ── LOADING SPLASH ── */
+.splash-overlay{position:fixed;inset:0;z-index:1900;background:linear-gradient(135deg,#f4f1ec 0%,#e8e3d9 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;font-family:'IBM Plex Sans',sans-serif;transition:opacity 0.35s ease;}
+.splash-overlay.hide{opacity:0;pointer-events:none;}
+.splash-brand{font-family:'Fraunces',serif;font-size:44px;font-weight:900;color:var(--text);letter-spacing:-1.5px;margin-bottom:6px;}
+.splash-brand em{font-style:italic;color:var(--accent);}
+.splash-tagline{font-size:11px;color:var(--text3);font-family:'Roboto Mono',monospace;letter-spacing:2px;text-transform:uppercase;margin-bottom:32px;}
+.splash-dots{display:flex;gap:8px;margin-bottom:16px;}
+.splash-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);opacity:0.3;animation:splashDot 1.2s ease-in-out infinite;}
+.splash-dot:nth-child(2){animation-delay:0.15s;}
+.splash-dot:nth-child(3){animation-delay:0.3s;}
+@keyframes splashDot{0%,100%{opacity:0.3;transform:translateY(0);}50%{opacity:1;transform:translateY(-4px);}}
+.splash-status{font-size:11px;color:var(--text3);font-family:'Roboto Mono',monospace;letter-spacing:1px;min-height:16px;}
+
 /* ── LEAGUE PICKER OVERLAY ── */
 .lpicker-overlay{position:fixed;inset:0;z-index:2000;background:linear-gradient(135deg,#f4f1ec 0%,#e8e3d9 100%);display:none;align-items:center;justify-content:center;padding:20px;flex-direction:column;font-family:'IBM Plex Sans',sans-serif;}
 .lpicker-overlay.open{display:flex;}
@@ -448,6 +461,28 @@ body{padding-bottom:52px;}
 </style>
 </head>
 <body>
+
+<!-- LOADING SPLASH — shown by default, hidden once app is ready or picker is open -->
+<div class="splash-overlay" id="splashOverlay">
+  <div class="splash-brand">Mini<em>Games</em></div>
+  <div class="splash-tagline">Loading your league</div>
+  <div class="splash-dots"><div class="splash-dot"></div><div class="splash-dot"></div><div class="splash-dot"></div></div>
+  <div class="splash-status" id="splashStatus">Connecting to Sleeper...</div>
+</div>
+
+<!-- LEAGUE PICKER (shown by bootstrap when no league is selected) -->
+<div class="lpicker-overlay" id="leaguePickerOverlay">
+  <div class="lpicker-brand">Mini<em>Games</em></div>
+  <div class="lpicker-tagline">Fantasy Side Games · Live Standings</div>
+  <div class="lpicker-card">
+    <div class="lpicker-head">
+      <h2 id="leaguePickerTitle">Choose your league</h2>
+      <p id="leaguePickerSub">Pick a league to see its standings, deadlines, and history. You'll only need to do this once — we'll remember your choice.</p>
+    </div>
+    <div class="lpicker-list" id="leaguePickerList"></div>
+  </div>
+  <div class="lpicker-foot">dynastyminigames.com</div>
+</div>
 
 <!-- HEADER -->
 <header class="header">
@@ -648,6 +683,7 @@ function applyConfig(cfg){
 
 // Show the picker screen (multiple leagues, or no league chosen)
 function showLeaguePicker(entries){
+  hideSplash();
   const overlay = document.getElementById('leaguePickerOverlay');
   const list = document.getElementById('leaguePickerList');
   if(!overlay || !list) return;
@@ -672,6 +708,7 @@ function showLeaguePicker(entries){
 }
 
 function showConfigError(msg){
+  hideSplash();
   const overlay = document.getElementById('leaguePickerOverlay');
   const title = document.getElementById('leaguePickerTitle');
   const sub = document.getElementById('leaguePickerSub');
@@ -684,6 +721,10 @@ function showConfigError(msg){
 }
 
 // Bootstrap: figure out which league to load, then start the app
+async 
+function splashStatus(txt){const el=document.getElementById('splashStatus');if(el)el.textContent=txt;}
+function hideSplash(){const el=document.getElementById('splashOverlay');if(!el)return;el.classList.add('hide');setTimeout(()=>{el.style.display='none';},400);}
+
 async function bootstrapLeague(){
   const index = await fetchLeaguesIndex();
   if(!index.length){
@@ -957,17 +998,26 @@ async function loadSheets(){
 async function loadLive(){
   isTest=false;
   setStatus('loading','Connecting to Sleeper...');
+  splashStatus('Connecting to Sleeper...');
   try{
+    // Load the league itself first — everything else needs rosters to exist
     await loadLeague(LIVE_ID);
-    await loadMatchups(LIVE_ID);
-    await loadTx(LIVE_ID);
+    splashStatus('Loading matchups & sheets...');
+    // These four don't depend on each other; run them in parallel
+    await Promise.all([
+      loadMatchups(LIVE_ID),
+      loadTx(LIVE_ID),
+      loadSheets(),
+    ]);
+    splashStatus('Loading players...');
+    // Players needs matchups to have loaded (uses starter IDs), so it's last
     await loadPlayers();
-    await loadSheets();
     setStatus('ok',`✓ Live · ${users.length} teams`);
     setUpdated();
     buildAll();
   }catch(e){
     setStatus('err','Could not connect — try refreshing');
+    splashStatus('Could not connect. Try refreshing the page.');
     console.error(e);
   }
 }
@@ -2362,6 +2412,7 @@ function myTeamId(){return (saved.myTeam&&saved.myTeam.user_id)||null;}
 function myRoster(){const uid=myTeamId();return uid?rosters.find(r=>r.owner_id===uid):null;}
 
 function openPicker(){
+  hideSplash();
   const list=$('pickerList');
   if(!list||!rosters.length)return;
   list.innerHTML='';
@@ -2386,7 +2437,11 @@ function setMyTeam(r){
 function maybePromptTeam(){
   if(!myTeamId()&&rosters.length&&!window._pickerShown){
     window._pickerShown=true;
-    setTimeout(openPicker,600);
+    // Open picker immediately; hideSplash inside openPicker so there's no dashboard flash
+    openPicker();
+  } else {
+    // User already picked a team (or no rosters yet) — reveal the dashboard
+    hideSplash();
   }
 }
 
