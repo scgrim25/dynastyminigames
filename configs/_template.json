@@ -1,46 +1,90 @@
 {
+  "_readme": [
+    "Copy this file to configs/<your-slug>.json, fill it in, then add one line to configs/index.json.",
+    "That's the whole process for adding a league — no code changes.",
+    "",
+    "GAMES: every game needs id, name, color, payout, activeWeeks, decidedWeek.",
+    "  'builder' wires the game to a standings table. Available builders:",
+    "    longgame · tactician · sleeper · cardiac · comeback · topscore · comingsoon",
+    "  Omit 'builder' for a game you score by hand — the page renders with rules only.",
+    "  'color' is one of: green gold red blue purple orange teal",
+    "  'payout' is a number (dollars). Totals are summed for you on the overview.",
+    "  'activeWeeks' drives the calendar row. Include playoff weeks if the game runs that long.",
+    "  'comingsoon' renders a teaser card instead of standings — use it for a game",
+    "  you've announced but not finished designing. Reads 'teaser' and 'teaserFacts'.",
+    "  'decidedWeek' is the week the winner is named — it gets a crown on the calendar."
+  ],
   "slug": "your-league-slug",
   "leagueName": "Your League Name",
   "season": "2026",
   "storeKey": "minigames_yourleague_2026",
-
   "liveId": "YOUR_SLEEPER_LEAGUE_ID",
   "testId": "OPTIONAL_TEST_LEAGUE_ID",
-
   "seasons": [
-    {"year": 2026, "id": "YOUR_2026_LEAGUE_ID"}
-  ],
-
-  "sheets": {
-    "tactician":     "CSV_PUBLISH_URL_FOR_TACTICIAN_TAB",
-    "long_game":     "CSV_PUBLISH_URL_FOR_LONG_GAME_TAB",
-    "sleeper_picks": "CSV_PUBLISH_URL_FOR_SLEEPER_PICKS_TAB",
-    "receipts":      "CSV_PUBLISH_URL_FOR_RECEIPTS_TAB",
-    "meta":          "CSV_PUBLISH_URL_FOR_META_TAB"
-  },
-
-  "receiptsForm": {
-    "action": "GOOGLE_FORM_ACTION_URL",
-    "fields": {
-      "name":       "entry.XXXXXXX",
-      "player":     "entry.XXXXXXX",
-      "prediction": "entry.XXXXXXX"
+    {
+      "year": 2026,
+      "id": "YOUR_2026_LEAGUE_ID"
     }
+  ],
+  "sheets": {
+    "tactician": "CSV_PUBLISH_URL_FOR_TACTICIAN_TAB",
+    "long_game": "CSV_PUBLISH_URL_FOR_LONG_GAME_TAB",
+    "sleeper_picks": "CSV_PUBLISH_URL_FOR_SLEEPER_PICKS_TAB",
+    "turducken": "CSV_PUBLISH_URL_FOR_TURDUCKEN_TAB",
+    "meta": "CSV_PUBLISH_URL_FOR_META_TAB"
   },
-
-  "week1Date": "2026-09-04",
-
+  "week1Date": "2026-09-09",
   "tyreekRecord": 64.9,
   "tyreekHolder": "Tyreek Hill",
   "tyreekWeek": 12,
   "tyreekYear": 2020,
   "tyreekBasePayout": 15,
-
   "deadlines": [
-    {"id":"longgame", "label":"Long Game Nominations", "gameId":"longgame", "date":"2026-09-06T12:00:00-04:00"},
-    {"id":"sleeper",  "label":"Sleeper Declarations",  "gameId":"sleeper",  "date":"2026-10-08T20:15:00-04:00"},
-    {"id":"receipts", "label":"Receipts Predictions",  "gameId":"receipts", "date":"2026-11-26T12:30:00-05:00"}
+    {
+      "id": "longgame",
+      "label": "Long Game Nominations",
+      "gameId": "longgame",
+      "date": "2026-09-06T12:00:00-04:00"
+    }
   ],
-
-  "nameAliases": {}
+  "nameAliases": {},
+  "games": [
+    {
+      "id": "longgame",
+      "name": "The Long Game",
+      "builder": "longgame",
+      "color": "green",
+      "payout": 25,
+      "typeLabel": "Season Long",
+      "weeks": "W1 Nomination → Championship",
+      "activeWeeks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "blurb": "One-line version, shown on the overview card.",
+      "desc": "The full pitch. Shown on the game page behind a More toggle.",
+      "highlight": "The one thing people need to remember, called out above the rules.",
+      "emptyHint": "What to do when there's no data yet.",
+      "rules": [
+        "First rule",
+        "Second rule"
+      ],
+      "decidedWeek": 17
+    }
+  ]
 }
