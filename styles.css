@@ -197,6 +197,7 @@ a{color:var(--accent);}
   display:flex;gap:6px;overflow-x:auto;padding:0 48px 12px;
   scrollbar-width:none;background:var(--bg);
 }
+.rail[hidden]{display:none;}
 .rail::-webkit-scrollbar{display:none;}
 .rail-item{
   flex-shrink:0;display:inline-flex;align-items:center;gap:6px;
@@ -263,13 +264,13 @@ a{color:var(--accent);}
   justify-content:space-between;gap:12px;box-shadow:var(--shadow);
   cursor:pointer;text-align:left;font-family:inherit;width:100%;
 }
-.cd-label{font-size:12px;font-weight:600;color:var(--text2);line-height:1.3;}
-.cd-sub{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px;}
+.cd-label{display:block;font-size:12px;font-weight:600;color:var(--text2);line-height:1.3;}
+.cd-sub{display:block;font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:3px;}
 .cd-time{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--g);white-space:nowrap;}
 .cd-time.cd-locked{color:var(--text3);}
 
 /* ── GAME CARDS (overview) ──────────────────────────────────────────────── */
-.games-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;align-items:start;}
+.games-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;align-items:stretch;}
 .game-card{
   background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
   overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;
@@ -277,8 +278,8 @@ a{color:var(--accent);}
 }
 .game-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);}
 .game-card-open{
-  display:block;width:100%;text-align:left;background:none;border:none;
-  border-left:4px solid var(--g);padding:18px 20px 14px;cursor:pointer;font-family:inherit;
+  display:block;width:100%;flex:1;text-align:left;background:none;border:none;
+  border-left:4px solid var(--g);padding:18px 20px 16px;cursor:pointer;font-family:inherit;
 }
 .game-card-open:hover .game-title{text-decoration:underline;text-underline-offset:3px;}
 .game-pill{
@@ -286,9 +287,9 @@ a{color:var(--accent);}
   padding:3px 8px;border-radius:100px;display:inline-block;margin-bottom:9px;
   font-weight:500;border:1px solid var(--g-b);background:var(--g-bg);color:var(--g);
 }
-.game-title{font-family:var(--display);font-size:20px;font-weight:700;line-height:1.15;color:var(--g);margin-bottom:3px;}
-.game-weeks{font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:9px;}
-.game-desc{font-size:13px;color:var(--text2);line-height:1.6;}
+.game-title{display:block;font-family:var(--display);font-size:20px;font-weight:700;line-height:1.2;color:var(--g);margin-bottom:4px;}
+.game-weeks{display:block;font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:10px;}
+.game-desc{display:block;font-size:13px;color:var(--text2);line-height:1.6;}
 
 /* Leader line — this is the Leaders strip, merged into the card */
 .game-leader{
@@ -313,7 +314,7 @@ a{color:var(--accent);}
 
 .game-footer{
   padding:10px 20px;background:var(--surface2);border-top:1px solid var(--border);
-  display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
 }
 .game-payout{font-family:var(--display);font-size:22px;font-weight:700;color:var(--g);}
 .game-myrank{font-family:var(--mono);font-size:11px;color:var(--text3);margin-left:8px;}
