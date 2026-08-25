@@ -1091,13 +1091,22 @@ function buildSleeperGame(panel, g){
     const savedPick = ((saved.sleeper || {})[rid]) || {};
     const pickedPid = sheetPick ? (elig.find(pid => pName(pid) === sheetPick.player_name) || '') : (savedPick.pick || '');
 
-    const baseScores = [1,2,3,4].map(w => {
-      for(const m of (matchups[w] || [])){
-        if(m.players_points && m.players_points[pickedPid] !== undefined) return m.players_points[pickedPid];
-      }
-      return null;
-    }).filter(s => s !== null);
-    const baseAvg = baseScores.length ? baseScores.reduce((a,b) => a + b, 0) / baseScores.length : null;
+    // Baseline: the sheet wins if the commissioner entered one, because league
+    // matchup data only covers weeks the player was rostered by somebody — the
+    // truest sleepers sit on waivers in W1-4 and would otherwise score nothing.
+    const sheetBaseline = sheetPick ? parseFloat(sheetPick.baseline) : NaN;
+    let baseAvg = null;
+    if(!isNaN(sheetBaseline)){
+      baseAvg = sheetBaseline;
+    } else {
+      const baseScores = [1,2,3,4].map(w => {
+        for(const m of (matchups[w] || [])){
+          if(m.players_points && m.players_points[pickedPid] !== undefined) return m.players_points[pickedPid];
+        }
+        return null;
+      }).filter(s => s !== null);
+      baseAvg = baseScores.length ? baseScores.reduce((a,b) => a + b, 0) / baseScores.length : null;
+    }
 
     const perfScores = [5,6,7,8,9,10,11,12,13,14].map(w => {
       if(!pickedPid) return null;
