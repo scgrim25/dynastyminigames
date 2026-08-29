@@ -2,6 +2,9 @@
   "_readme": [
     "Copy this file to configs/<your-slug>.json, fill it in, then add one line to configs/index.json.",
     "That's the whole process for adding a league — no code changes.",
+    "  sheetsApi is the Apps Script web app /exec url — one url instead of five CSVs.",
+    "  Leave the 'sheets' CSV urls in as a fallback, or delete them once the API works.",
+    "  trailer is optional — delete the whole block and nothing renders.",
     "",
     "GAMES: every game needs id, name, color, payout, activeWeeks, decidedWeek.",
     "  'builder' wires the game to a standings table. Available builders:",
@@ -17,7 +20,15 @@
   "slug": "your-league-slug",
   "leagueName": "Your League Name",
   "season": "2026",
+  "trailer": {
+    "src": "media/your-trailer.mp4  (or a YouTube/Vimeo embed url)",
+    "poster": "media/your-trailer.jpg",
+    "caption": "One line over the poster. Optional.",
+    "title": "League trailer",
+    "miniLabel": "Watch the trailer"
+  },
   "storeKey": "minigames_yourleague_2026",
+  "sheetsApi": "PASTE_APPS_SCRIPT_WEB_APP_EXEC_URL",
   "liveId": "YOUR_SLEEPER_LEAGUE_ID",
   "testId": "OPTIONAL_TEST_LEAGUE_ID",
   "seasons": [
