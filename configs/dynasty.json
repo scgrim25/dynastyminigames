@@ -149,15 +149,18 @@
       ],
       "blurb": "Actual points vs. your perfect lineup. Highest season average wins.",
       "desc": "Anyone can win with the right players. The Tactician wins with the right decisions. Tracks how close you get to your perfect lineup every week — actual points scored vs. maximum possible across the full regular season. Genius is in the details.",
-      "highlight": "Efficiency = actual ÷ max possible. Highest season average wins. Regular season W1–W14 only.",
+      "highlight": "Efficiency = actual ÷ max possible, carried to two decimals. Highest season average wins. Regular season W1–W14 only.",
       "emptyHint": "Commissioner enters actual vs. max points each week in the Google Sheet.",
       "rules": [
         "Efficiency = actual points scored ÷ max possible points that week",
-        "Max possible = optimal starting lineup from your roster given position slots",
+        "Max possible = the optimal starting lineup from your roster given your position slots",
         "Commissioner calculates and enters weekly after each game week",
         "All 14 regular season weeks counted",
-        "Season average efficiency determines winner",
-        "Tiebreaker: most efficient single week"
+        "Season average efficiency determines the winner, carried to two decimal places",
+        "A week only counts once both numbers are entered",
+        "First tiebreaker: most efficient single week",
+        "Still tied: compare second-best weeks, then third, and so on until one is higher",
+        "Final fallback: fewest total points left on the bench"
       ],
       "decidedWeek": 14
     },
