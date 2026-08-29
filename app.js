@@ -316,8 +316,9 @@ function playLandingVideo(){
   box.classList.add('playing');
   box.innerHTML = isEmbed
     ? `<iframe src="${esc(t.src)}${t.src.includes('?') ? '&' : '?'}autoplay=1" title="${esc(t.title || 'Trailer')}"
-         allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
+         allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`
     : `<video src="${esc(t.src)}" ${t.poster ? `poster="${esc(t.poster)}"` : ''} controls autoplay playsinline></video>`;
+  maximizeVideo(box);
   scrollToChoose('nearest');
 }
 
@@ -869,6 +870,53 @@ function toggleRules(btn){
 }
 
 
+
+/* ── FULLSCREEN ──────────────────────────────────────────────────────────────
+   Best-effort, and it differs by platform:
+     iOS + YouTube  — the embed opens iOS's own fullscreen player as long as we
+                      do NOT pass playsinline=1. Nothing for us to call.
+     iOS + <video>  — only webkitEnterFullscreen() works, and only once metadata
+                      has loaded. requestFullscreen() does not exist on iOS.
+     Android/desktop— requestFullscreen() on the wrapper works for both.
+   Every path is wrapped: if fullscreen is refused the video still plays inline. */
+
+/* Viewport width only. Touch detection would also catch touchscreen laptops,
+   where hijacking the screen for a video is the wrong call. */
+function isMobile(){
+  return window.matchMedia
+    ? window.matchMedia('(max-width: 768px)').matches
+    : window.innerWidth <= 768;
+}
+
+function requestFs(el){
+  if(!el) return false;
+  const fn = el.requestFullscreen || el.webkitRequestFullscreen
+          || el.webkitRequestFullScreen || el.msRequestFullscreen;
+  if(!fn) return false;
+  try {
+    const p = fn.call(el);
+    if(p && typeof p.catch === 'function') p.catch(() => {});
+    return true;
+  } catch(e){ return false; }
+}
+
+/* Call synchronously from the click handler — browsers require a user gesture. */
+function maximizeVideo(container){
+  if(!container || !isMobile()) return;
+  const video = container.querySelector('video');
+  if(video){
+    // iOS: the only supported path, and it needs metadata first.
+    if(typeof video.webkitEnterFullscreen === 'function' && !video.requestFullscreen){
+      const go = () => { try { video.webkitEnterFullscreen(); } catch(e){} };
+      if(video.readyState >= 1) go();
+      else video.addEventListener('loadedmetadata', go, { once: true });
+      return;
+    }
+    if(requestFs(video)) return;
+  }
+  requestFs(container);
+}
+
 /* ── TRAILER ─────────────────────────────────────────────────────────────────
    Config-driven, per league. Renders nothing when the league has no trailer.
    Shows big once, then collapses to a slim link so it never gets in the way
@@ -909,11 +957,12 @@ function openTrailer(){
   wrap.innerHTML = `<div class="trailer playing">
     ${isEmbed
       ? `<iframe src="${esc(t.src)}${t.src.includes('?') ? '&' : '?'}autoplay=1" title="${esc(t.title || 'League trailer')}"
-           allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe>`
+           allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe>`
       : `<video src="${esc(t.src)}" ${t.poster ? `poster="${esc(t.poster)}"` : ''}
            controls autoplay playsinline preload="metadata"></video>`}
     <button class="trailer-skip" onclick="dismissTrailer()">Close</button>
   </div>`;
+  maximizeVideo(wrap.querySelector('.trailer'));
   markTrailerSeen();
 }
 
