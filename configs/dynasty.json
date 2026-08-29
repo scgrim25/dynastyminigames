@@ -2,11 +2,11 @@
   "slug": "dynasty",
   "leagueName": "The Dynasty",
   "season": "2026",
-  "trailer": "https://youtu.be/quH_nad5TEA",
-    "src": "media/dynasty-2026.mp4",
-    "poster": "media/dynasty-2026.jpg",
+  "trailer": {
+    "src": "https://www.youtube-nocookie.com/embed/quH_nad5TEA",
+    "poster": "https://i.ytimg.com/vi/quH_nad5TEA/maxresdefault.jpg",
     "caption": "Seven games. One season. $120 on the line.",
-    "title": "League trailer",
+    "title": "The Dynasty MiniGames 2026",
     "miniLabel": "Watch the trailer"
   },
   "storeKey": "minigames_dynasty_2026",
