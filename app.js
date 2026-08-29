@@ -51,7 +51,7 @@ function onLanding(){ return !SLUG || parseHash().slug === 'leagues'; }
 function currentPageId(){
   if(onLanding()) return 'page-landing';
   const { page } = parseHash();
-  if(page === 'overview' || page === 'history' || page === 'report') return 'page-' + page;
+  if(page === 'overview' || page === 'history' || page === 'report' || page === 'submit') return 'page-' + page;
   if(GAMES.some(g => g.id === page)) return 'page-game-' + page;
   return 'page-overview';
 }
@@ -85,6 +85,7 @@ function renderRoute(){
   // Desktop nav state
   setNavCurrent($('navOverview'), page === 'overview');
   setNavCurrent($('navHistory'),  page === 'history');
+  setNavCurrent($('navSubmit'),   page === 'submit');
   setNavCurrent($('navReport'),   page === 'report');
   setNavCurrent($('navGamesBtn'), !!game);
   document.querySelectorAll('.nav-dropdown-item').forEach(b =>
@@ -94,6 +95,7 @@ function renderRoute(){
   setNavCurrent($('tabOverview'), page === 'overview');
   setNavCurrent($('tabGames'),    !!game);
   setNavCurrent($('tabHistory'),  page === 'history');
+  setNavCurrent($('tabSubmit'),   page === 'submit');
   setNavCurrent($('tabReport'),   page === 'report');
 
   // Game rail — visible only on a game page
@@ -110,6 +112,7 @@ function renderRoute(){
   // Lazy loads
   if(page === 'history' && !Object.keys(histData).length) loadHistory();
   if(page === 'report') buildReport(arg);
+  if(page === 'submit') buildSubmit(arg);
 
   closeAllMenus();
   window.scrollTo(0, 0);
@@ -310,15 +313,12 @@ function buildLanding(){
 
 function playLandingVideo(){
   const t = (SITE && SITE.trailer) || {};
+  if(!t.src) return;
+  if(isMobile()){ openVideoOverlay(t); return; }
   const box = $('landingVideo');
   if(!box) return;
-  const isEmbed = /youtube|youtu\.be|vimeo|player\./i.test(t.src || '');
   box.classList.add('playing');
-  box.innerHTML = isEmbed
-    ? `<iframe src="${esc(t.src)}${t.src.includes('?') ? '&' : '?'}autoplay=1" title="${esc(t.title || 'Trailer')}"
-         allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`
-    : `<video src="${esc(t.src)}" ${t.poster ? `poster="${esc(t.poster)}"` : ''} controls autoplay playsinline></video>`;
-  maximizeVideo(box);
+  box.innerHTML = videoMarkup(t);
   scrollToChoose('nearest');
 }
 
@@ -555,6 +555,11 @@ function collectPlayerIds(){
     (m.starters || []).forEach(id => ids.add(id));
     if(m.players_points) Object.keys(m.players_points).forEach(id => ids.add(id));
   }));
+  // W1-4 adds too — the Sleeper game's candidates include players who were
+  // acquired and later dropped, so they appear in no roster and no lineup.
+  Object.values(transactions).forEach(wk => (wk || []).forEach(tx => {
+    if(tx.adds) Object.keys(tx.adds).forEach(id => ids.add(id));
+  }));
   ids.delete('0');
   return ids;
 }
@@ -695,6 +700,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => {
   if(e.key !== 'Escape') return;
+  closeVideoOverlay();
   closeAllMenus();
   closeGameSheet();
   closePicker();
@@ -871,50 +877,60 @@ function toggleRules(btn){
 
 
 
-/* ── FULLSCREEN ──────────────────────────────────────────────────────────────
-   Best-effort, and it differs by platform:
-     iOS + YouTube  — the embed opens iOS's own fullscreen player as long as we
-                      do NOT pass playsinline=1. Nothing for us to call.
-     iOS + <video>  — only webkitEnterFullscreen() works, and only once metadata
-                      has loaded. requestFullscreen() does not exist on iOS.
-     Android/desktop— requestFullscreen() on the wrapper works for both.
-   Every path is wrapped: if fullscreen is refused the video still plays inline. */
+/* ── VIDEO OVERLAY ───────────────────────────────────────────────────────────
+   The Fullscreen API is unreliable here: YouTube blocks unmuted autoplay, so
+   the person taps YouTube's own play button — and by then our gesture is gone
+   and requestFullscreen() gets refused. A fixed overlay fills the viewport the
+   same way on every platform, with no gesture rules to satisfy. Whoever wants
+   true fullscreen can still hit the player's own control. */
 
-/* Viewport width only. Touch detection would also catch touchscreen laptops,
-   where hijacking the screen for a video is the wrong call. */
 function isMobile(){
   return window.matchMedia
     ? window.matchMedia('(max-width: 768px)').matches
     : window.innerWidth <= 768;
 }
 
-function requestFs(el){
-  if(!el) return false;
-  const fn = el.requestFullscreen || el.webkitRequestFullscreen
-          || el.webkitRequestFullScreen || el.msRequestFullscreen;
-  if(!fn) return false;
-  try {
-    const p = fn.call(el);
-    if(p && typeof p.catch === 'function') p.catch(() => {});
-    return true;
-  } catch(e){ return false; }
+function videoMarkup(t){
+  const isEmbed = /youtube|youtu\.be|vimeo|player\./i.test(t.src || '');
+  return isEmbed
+    ? `<iframe src="${esc(t.src)}${t.src.includes('?') ? '&' : '?'}autoplay=1&rel=0"
+         title="${esc(t.title || 'Trailer')}"
+         allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen"
+         allowfullscreen></iframe>`
+    : `<video src="${esc(t.src)}" ${t.poster ? `poster="${esc(t.poster)}"` : ''}
+         controls autoplay playsinline></video>`;
 }
 
-/* Call synchronously from the click handler — browsers require a user gesture. */
-function maximizeVideo(container){
-  if(!container || !isMobile()) return;
-  const video = container.querySelector('video');
-  if(video){
-    // iOS: the only supported path, and it needs metadata first.
-    if(typeof video.webkitEnterFullscreen === 'function' && !video.requestFullscreen){
-      const go = () => { try { video.webkitEnterFullscreen(); } catch(e){} };
-      if(video.readyState >= 1) go();
-      else video.addEventListener('loadedmetadata', go, { once: true });
-      return;
-    }
-    if(requestFs(video)) return;
+function openVideoOverlay(t){
+  if(!t || !t.src) return;
+  closeVideoOverlay();
+  const el = document.createElement('div');
+  el.className = 'video-modal';
+  el.id = 'videoModal';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-label', t.title || 'Trailer');
+  el.innerHTML = `
+    <button class="video-modal-close" onclick="closeVideoOverlay()" aria-label="Close video">✕</button>
+    <div class="video-modal-stage">${videoMarkup(t)}</div>`;
+  el.addEventListener('click', e => { if(e.target === el) closeVideoOverlay(); });
+  document.body.appendChild(el);
+  document.body.classList.add('video-open');
+
+  // If the browser will grant it, take real fullscreen too — but never depend on it.
+  const stage = el.querySelector('.video-modal-stage');
+  const vid = el.querySelector('video');
+  if(vid && typeof vid.webkitEnterFullscreen === 'function' && !vid.requestFullscreen){
+    const go = () => { try { vid.webkitEnterFullscreen(); } catch(e){} };
+    if(vid.readyState >= 1) go(); else vid.addEventListener('loadedmetadata', go, { once: true });
   }
-  requestFs(container);
+  return stage;
+}
+
+function closeVideoOverlay(){
+  const el = $('videoModal');
+  if(el) el.remove();
+  document.body.classList.remove('video-open');
 }
 
 /* ── TRAILER ─────────────────────────────────────────────────────────────────
@@ -950,20 +966,13 @@ function buildTrailer(){
 
 function openTrailer(){
   const t = LEAGUE_CONFIG && LEAGUE_CONFIG.trailer;
-  const wrap = $('trailerSlot');
-  if(!t || !wrap) return;
-  const isEmbed = /youtube|youtu\.be|vimeo|player\./i.test(t.src);
-
-  wrap.innerHTML = `<div class="trailer playing">
-    ${isEmbed
-      ? `<iframe src="${esc(t.src)}${t.src.includes('?') ? '&' : '?'}autoplay=1" title="${esc(t.title || 'League trailer')}"
-           allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe>`
-      : `<video src="${esc(t.src)}" ${t.poster ? `poster="${esc(t.poster)}"` : ''}
-           controls autoplay playsinline preload="metadata"></video>`}
-    <button class="trailer-skip" onclick="dismissTrailer()">Close</button>
-  </div>`;
-  maximizeVideo(wrap.querySelector('.trailer'));
+  if(!t || !t.src) return;
   markTrailerSeen();
+  if(isMobile()){ openVideoOverlay(t); buildTrailer(); return; }
+  const wrap = $('trailerSlot');
+  if(!wrap) return;
+  wrap.innerHTML = `<div class="trailer playing">${videoMarkup(t)}
+    <button class="trailer-skip" onclick="dismissTrailer()">Close</button></div>`;
 }
 
 function markTrailerSeen(){
@@ -2299,6 +2308,209 @@ function buildSeasonView(container, year){
   });
   sc.appendChild(sb);
   container.appendChild(sc);
+}
+
+
+/* ═══ SUBMISSIONS ═══════════════════════════════════════════════════════════
+   Driven by a "submission" block on any game in the league config, so a new
+   game only needs config to appear here. Writes back through the same Apps
+   Script web app that serves the sheet data.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function submittableGames(){
+  return GAMES.filter(g => g.submission && g.submission.sheet && g.submission.field);
+}
+
+function submissionDeadline(g){
+  const id = g.submission.deadlineId || g.id;
+  const d = (DEADLINES || []).find(x => x.id === id || x.gameId === g.id);
+  return d ? new Date(d.date).getTime() : null;
+}
+
+/* What this manager has already submitted, read from the sheet we already load. */
+function existingSubmission(g){
+  const mr = myRoster();
+  if(!mr) return null;
+  const rows = sheets[g.submission.sheet] || [];
+  const row = rows.find(r => String(r.roster_id) === String(mr.roster_id));
+  const v = row ? row[g.submission.field] : '';
+  return v ? String(v) : null;
+}
+
+/* Candidate players for the picker. */
+function submissionOptions(g){
+  const mr = myRoster();
+  if(!mr) return [];
+  const src = g.submission.source;
+  let ids = [];
+  if(src === 'acquisitions') ids = heistElig(mr.roster_id);
+  else ids = (mr.players || []);
+  return ids
+    .map(pid => ({ pid, name: pName(pid) }))
+    .filter(p => p.name && p.name !== p.pid)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function buildSubmit(argId){
+  const el = $('page-submit');
+  if(!el) return;
+  const list = submittableGames();
+
+  if(!list.length){
+    el.innerHTML = `<div class="card"><div class="card-empty"><div class="icon">✍️</div>
+      Nothing needs submitting in this league. Every game scores itself.</div></div>`;
+    return;
+  }
+
+  const mr = myRoster();
+  if(!mr){
+    el.innerHTML = `<div class="card"><div class="card-empty"><div class="icon">👋</div>
+      Pick your team first so we know whose roster to show.<br><br>
+      <button class="btn btn-primary" onclick="openPicker()">Choose your team</button></div></div>`;
+    return;
+  }
+
+  const now = Date.now();
+  const chosen = argId && list.some(g => g.id === argId) ? argId
+    : (window._submitPick && list.some(g => g.id === window._submitPick) ? window._submitPick
+      : (list.find(g => { const d = submissionDeadline(g); return d === null || d > now; }) || list[0]).id);
+  window._submitPick = chosen;
+
+  el.innerHTML = `
+    <div class="submit-head">
+      <h1 class="submit-title">What are you submitting?</h1>
+      <p class="submit-sub">Submitting as <strong>${esc(tName(mr))}</strong>
+        · <button class="linkish" onclick="openPicker()">not you?</button></p>
+    </div>
+    <div class="submit-choices" role="tablist">
+      ${list.map(g => {
+        const dl = submissionDeadline(g);
+        const closed = dl !== null && dl <= now;
+        const done = existingSubmission(g);
+        return `<button class="submit-choice ${g.cls}${g.id === chosen ? ' on' : ''}"
+                  role="tab" aria-selected="${g.id === chosen}" onclick="pickSubmission('${esc(g.id)}')">
+          <span class="submit-choice-name">${esc(g.name)}</span>
+          <span class="submit-choice-state">${closed ? 'Closed' : done ? '✓ Submitted' : 'Open'}</span>
+        </button>`;
+      }).join('')}
+    </div>
+    <div id="submitPanel"></div>`;
+
+  buildSubmitPanel(list.find(g => g.id === chosen));
+}
+
+function pickSubmission(id){
+  window._submitPick = id;
+  buildSubmit(id);
+}
+
+function buildSubmitPanel(g){
+  const panel = $('submitPanel');
+  if(!panel || !g) return;
+  const sub = g.submission;
+  const dl = submissionDeadline(g);
+  const now = Date.now();
+  const closed = dl !== null && dl <= now;
+  const current = existingSubmission(g);
+  const opts = submissionOptions(g);
+  const namesReady = Object.keys(players).length > 0;
+
+  const when = dl ? new Date(dl).toLocaleString('en-US',
+    { weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : null;
+
+  let body;
+  if(closed){
+    body = `<div class="card-empty"><div class="icon">🔒</div>
+      This closed ${esc(when)}.${current ? `<br>You submitted <strong>${esc(current)}</strong>.` : '<br>You didn\'t submit anything.'}</div>`;
+  } else if(!namesReady){
+    body = `<div class="card-empty"><div class="icon">⏳</div>Loading player names…</div>`;
+  } else if(!opts.length){
+    body = `<div class="card-empty"><div class="icon">🤷</div>
+      No eligible players yet.${sub.source === 'acquisitions'
+        ? ' This fills in once you add someone in Weeks 1–4.' : ''}</div>`;
+  } else {
+    body = `<div class="submit-form">
+      <p class="submit-help">${esc(sub.help || '')}</p>
+      ${current ? `<div class="info info-green">Currently submitted: <strong>${esc(current)}</strong>.
+        Choosing again replaces it.</div>` : ''}
+      <label class="field-label" for="submitValue">${esc(sub.label || 'Your pick')}</label>
+      <select id="submitValue">
+        <option value="">— Select a player —</option>
+        ${opts.map(o => `<option value="${esc(o.name)}"${o.name === current ? ' selected' : ''}>${esc(o.name)}</option>`).join('')}
+      </select>
+      <div class="submit-actions">
+        <button class="btn btn-primary" id="submitBtn" onclick="sendSubmission('${esc(g.id)}')">
+          ${current ? 'Change my pick' : 'Submit'}</button>
+        <span class="submit-msg" id="submitMsg" role="status" aria-live="polite"></span>
+      </div>
+      <p class="submit-note">${opts.length} eligible ${opts.length === 1 ? 'player' : 'players'}${
+        when ? ` · closes ${esc(when)}` : ''}</p>
+    </div>`;
+  }
+
+  panel.innerHTML = `<div class="card ${g.cls}">
+    <div class="card-head"><div>
+      <div class="card-title" style="color:var(--g)">${esc(g.name)}</div>
+      <div class="card-sub">${esc(g.weeks)} · ${g.payoutLabel}</div>
+    </div>${dl && !closed ? `<span class="cd-time" data-deadline="${esc(new Date(dl).toISOString())}">—</span>` : ''}</div>
+    ${body}</div>`;
+  tickCountdowns();
+}
+
+async function sendSubmission(gameId){
+  const g = GAMES.find(x => x.id === gameId);
+  const sel = $('submitValue'), btn = $('submitBtn'), msg = $('submitMsg');
+  if(!g || !sel) return;
+  const value = sel.value.trim();
+  if(!value){ msg.textContent = 'Pick a player first.'; msg.className = 'submit-msg bad'; return; }
+
+  const dl = submissionDeadline(g);
+  if(dl !== null && dl <= Date.now()){
+    msg.textContent = 'This one has closed.'; msg.className = 'submit-msg bad'; return;
+  }
+  if(!SHEETS_API){
+    msg.textContent = 'No submission endpoint configured for this league.';
+    msg.className = 'submit-msg bad'; return;
+  }
+
+  const mr = myRoster();
+  btn.disabled = true; btn.textContent = 'Sending…';
+  msg.textContent = ''; msg.className = 'submit-msg';
+
+  try {
+    // text/plain keeps this a "simple" request — Apps Script can't answer a
+    // CORS preflight, so application/json would be blocked before it left.
+    const r = await fetchWithTimeout(SHEETS_API, 25000, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'submit',
+        sheet: g.submission.sheet,
+        field: g.submission.field,
+        roster_id: mr.roster_id,
+        team_name: tName(mr),
+        value: value
+      })
+    });
+    const out = await r.json();
+    if(!out || !out.ok) throw new Error((out && out.error) || 'rejected');
+
+    msg.textContent = 'Locked in.'; msg.className = 'submit-msg good';
+    btn.textContent = 'Submitted ✓';
+
+    // Reflect it immediately without waiting for the 5-minute cache to expire.
+    const rows = sheets[g.submission.sheet] || (sheets[g.submission.sheet] = []);
+    let row = rows.find(x => String(x.roster_id) === String(mr.roster_id));
+    if(!row){ row = { roster_id: String(mr.roster_id) }; rows.push(row); }
+    row[g.submission.field] = value;
+    setTimeout(() => { buildSubmit(gameId); buildAll(); }, 900);
+  } catch(e){
+    console.error(e);
+    msg.textContent = 'Didn\'t go through — try again.';
+    msg.className = 'submit-msg bad';
+    btn.disabled = false;
+    btn.textContent = 'Submit';
+  }
 }
 
 /* ═══ WEEKLY REPORT ═════════════════════════════════════════════════════════
