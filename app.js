@@ -17,7 +17,7 @@ const API = 'https://api.sleeper.app/v1';
 const $ = id => document.getElementById(id);
 
 /* Config-derived globals, populated by applyConfig() before the app boots. */
-let LEAGUE_CONFIG = null, LEAGUES_INDEX = [];
+let LEAGUE_CONFIG = null, LEAGUES_INDEX = [], SITE = null;
 let SLUG, LIVE_ID, TEST_ID, STORE, SEASON_IDS, SHEETS, SHEETS_API;
 let NAME_ALIASES, WEEK1_DATE, TYREEK_RECORD, DEADLINES, GAMES = [];
 
@@ -46,7 +46,10 @@ function go(page, arg){
   else location.hash = next;
 }
 
+function onLanding(){ return !SLUG || parseHash().slug === 'leagues'; }
+
 function currentPageId(){
+  if(onLanding()) return 'page-landing';
   const { page } = parseHash();
   if(page === 'overview' || page === 'history' || page === 'report') return 'page-' + page;
   if(GAMES.some(g => g.id === page)) return 'page-game-' + page;
@@ -55,6 +58,17 @@ function currentPageId(){
 
 function renderRoute(){
   const { slug, page, arg } = parseHash();
+
+  // Landing page — no league loaded, so nothing below applies.
+  if(slug === 'leagues' || !SLUG){
+    document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-landing'));
+    document.body.classList.add('is-landing');
+    document.title = (SITE && SITE.title) || 'MiniGames';
+    closeAllMenus();
+    window.scrollTo(0, 0);
+    return;
+  }
+  document.body.classList.remove('is-landing');
 
   // Switching leagues via URL: reload so every module re-inits from scratch.
   if(slug && SLUG && slug.toLowerCase() !== SLUG){
@@ -201,11 +215,34 @@ async function bootstrap(){
       'run a local server instead — fetch() is blocked on file:// URLs. Try: python3 -m http.server'
     );
   }
-
   LEAGUES_INDEX = index;
-  const slug = resolveSlug(index);
-  const entry = index.find(e => e.slug === slug);
 
+  // site.json is optional; without it there's no landing page.
+  try { SITE = await fetchJSON('configs/site.json'); } catch(e){ SITE = null; }
+
+  const h = parseHash();
+  const legacy = new URLSearchParams(location.search).get('league');
+  let remembered = null;
+  try { remembered = localStorage.getItem('mg_last_league'); } catch(e){}
+  let landingSeen = false;
+  try { landingSeen = localStorage.getItem('mg_landing_seen') === '1'; } catch(e){}
+
+  const known = sl => sl && index.some(e => e.slug === String(sl).toLowerCase());
+
+  let slug = null;
+  if(h.slug === 'leagues')            slug = null;                    // explicit "pick a league"
+  else if(known(h.slug))              slug = h.slug.toLowerCase();    // deep link wins
+  else if(known(legacy))              slug = legacy.toLowerCase();    // old ?league= links
+  else if(!SITE)                      slug = index[0].slug;           // no landing configured
+  else if(landingSeen && known(remembered)) slug = remembered;        // returning visitor
+  // otherwise: show the landing page
+
+  if(!slug){
+    startLanding();
+    return;
+  }
+
+  const entry = index.find(e => e.slug === slug);
   try {
     const cfg = await fetchJSON(entry.config);
     cfg.slug = entry.slug;
@@ -220,13 +257,98 @@ async function bootstrap(){
     return fatal('No games configured', 'Add a "games" array to ' + entry.config + ' — see configs/_template.json.');
   }
 
-  // Normalize the URL so every session has a real, shareable hash.
-  const h = parseHash();
-  if(h.slug !== SLUG){
-    history.replaceState(null, '', '#/' + SLUG + (h.slug ? '/' + h.page + (h.arg ? '/' + h.arg : '') : ''));
+  const h2 = parseHash();
+  if(h2.slug !== SLUG){
+    history.replaceState(null, '', '#/' + SLUG + (h2.slug ? '/' + h2.page + (h2.arg ? '/' + h2.arg : '') : ''));
   }
 
   startApp();
+}
+
+/* ── LANDING ─────────────────────────────────────────────────────────────── */
+
+function startLanding(){
+  buildLanding();
+  renderRoute();
+  hideSplash();
+}
+
+function buildLanding(){
+  const el = $('page-landing');
+  if(!el) return;
+  const t = (SITE && SITE.trailer) || null;
+  const isEmbed = t && /youtube|youtu\.be|vimeo|player\./i.test(t.src);
+
+  el.innerHTML = `
+    <div class="landing">
+      <div class="landing-brand">Mini<em>Games</em></div>
+      ${SITE && SITE.tagline ? `<p class="landing-tagline">${esc(SITE.tagline)}</p>` : ''}
+
+      ${t && t.src ? `
+      <div class="landing-video" id="landingVideo">
+        <button class="trailer-poster" onclick="playLandingVideo()" aria-label="Play the trailer">
+          ${t.poster ? `<img src="${esc(t.poster)}" alt="">` : '<span class="trailer-fallback"></span>'}
+          <span class="trailer-play" aria-hidden="true">▶</span>
+        </button>
+      </div>
+      <button class="landing-skip" onclick="skipLandingVideo()">Skip the video</button>` : ''}
+
+      <div class="landing-choose" id="landingChoose">
+        <div class="sec-title">${esc((SITE && SITE.chooseLabel) || 'Choose your league')}</div>
+        <div class="league-grid">
+          ${LEAGUES_INDEX.map(e => `
+            <button class="league-card" onclick="enterLeague('${esc(e.slug)}')">
+              <span class="league-card-name">${esc(e.name || e.slug)}</span>
+              ${e.tagline ? `<span class="league-card-tag">${esc(e.tagline)}</span>` : ''}
+              <span class="league-card-go" aria-hidden="true">→</span>
+            </button>`).join('')}
+        </div>
+      </div>
+      ${SITE && SITE.footer ? `<p class="landing-footer">${esc(SITE.footer)}</p>` : ''}
+    </div>`;
+}
+
+function playLandingVideo(){
+  const t = (SITE && SITE.trailer) || {};
+  const box = $('landingVideo');
+  if(!box) return;
+  const isEmbed = /youtube|youtu\.be|vimeo|player\./i.test(t.src || '');
+  box.classList.add('playing');
+  box.innerHTML = isEmbed
+    ? `<iframe src="${esc(t.src)}${t.src.includes('?') ? '&' : '?'}autoplay=1" title="${esc(t.title || 'Trailer')}"
+         allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
+    : `<video src="${esc(t.src)}" ${t.poster ? `poster="${esc(t.poster)}"` : ''} controls autoplay playsinline></video>`;
+  scrollToChoose('nearest');
+}
+
+/* Guarded — scrollIntoView is missing in some embedded webviews. */
+function scrollToChoose(block){
+  const choose = $('landingChoose');
+  if(choose && typeof choose.scrollIntoView === 'function'){
+    try { choose.scrollIntoView({ behavior: 'smooth', block: block }); } catch(e){}
+  }
+}
+
+function skipLandingVideo(){
+  const box = $('landingVideo');
+  if(box) box.remove();
+  const skip = document.querySelector('.landing-skip');
+  if(skip) skip.remove();
+  scrollToChoose('start');
+}
+
+function enterLeague(slug){
+  try {
+    localStorage.setItem('mg_last_league', slug);
+    localStorage.setItem('mg_landing_seen', '1');
+  } catch(e){}
+  location.hash = '#/' + slug;
+  location.reload();
+}
+
+function goToLanding(){
+  location.hash = '#/leagues';
+  location.reload();
 }
 
 function fatal(title, msg){
