@@ -4,5 +4,11 @@
     "name": "The Dynasty",
     "tagline": "Dynasty · Superflex · 10 team",
     "config": "configs/dynasty.json"
+  },
+  {
+    "slug": "bruh",
+    "name": "Dynasty Bruh",
+    "tagline": "Dynasty · 2026",
+    "config": "configs/bruh.json"
   }
 ]
