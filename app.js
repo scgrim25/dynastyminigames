@@ -18,7 +18,7 @@ const $ = id => document.getElementById(id);
 
 /* Config-derived globals, populated by applyConfig() before the app boots. */
 let LEAGUE_CONFIG = null, LEAGUES_INDEX = [];
-let SLUG, LIVE_ID, TEST_ID, STORE, SEASON_IDS, SHEETS;
+let SLUG, LIVE_ID, TEST_ID, STORE, SEASON_IDS, SHEETS, SHEETS_API;
 let NAME_ALIASES, WEEK1_DATE, TYREEK_RECORD, DEADLINES, GAMES = [];
 
 /* Runtime state */
@@ -147,6 +147,7 @@ function applyConfig(cfg){
   STORE       = cfg.storeKey || 'minigames_' + (cfg.slug || 'default');
   SEASON_IDS  = cfg.seasons || [];
   SHEETS      = cfg.sheets || {};
+  SHEETS_API  = cfg.sheetsApi || '';
   NAME_ALIASES = cfg.nameAliases || {};
   WEEK1_DATE  = new Date(cfg.week1Date || '2026-09-04');
   TYREEK_RECORD = cfg.tyreekRecord || 64.9;
@@ -259,6 +260,8 @@ function setStatus(state, txt){
   const dot = $('sDot'), el = $('sTxt');
   if(dot) dot.className = 'sdot ' + state;
   if(el) el.textContent = txt;
+  const bar = $('loadBar');
+  if(bar) bar.classList.toggle('on', state === 'loading');
 }
 function setUpdated(){
   const el = $('lastUpdated');
@@ -484,6 +487,30 @@ async function loadPlayers(){
 
 async function loadSheets(){
   setStatus('loading', 'Loading sheet data…');
+
+  // Preferred: one Apps Script web app call returning every tab.
+  if(SHEETS_API){
+    try {
+      // Cold starts run a few seconds; the cache keeps warm calls quick.
+      const r = await fetchWithTimeout(SHEETS_API, 25000);
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      if(!data || !data.tabs) throw new Error('unexpected payload');
+      sheets.tactician     = data.tabs.tactician     || [];
+      sheets.long_game     = data.tabs.long_game     || [];
+      sheets.sleeper_picks = data.tabs.sleeper_picks || [];
+      sheets.turducken     = data.tabs.turducken     || [];
+      const mo = {};
+      (data.tabs.meta || []).forEach(r2 => { if(r2.key) mo[r2.key] = r2.value; });
+      sheets.meta = mo;
+      return;
+    } catch(e){
+      console.warn('sheetsApi failed, falling back to published CSVs', e);
+      if(!SHEETS || !SHEETS.tactician) throw e;
+    }
+  }
+
+  // Fallback: the published CSV urls.
   const [tac, lng, slp, trd, met] = await Promise.all([
     csvGet(SHEETS.tactician), csvGet(SHEETS.long_game),
     csvGet(SHEETS.sleeper_picks), csvGet(SHEETS.turducken), csvGet(SHEETS.meta)
@@ -1513,169 +1540,6 @@ function buildComingSoon(panel, g){
         <div><dt>${esc(f.label)}</dt><dd>${esc(f.value)}</dd></div>`).join('')}</dl>` : ''}
     </div>`;
   panel.appendChild(card);
-}
-
-/* ── THE GHOST — highest single-player week ──────────────────────────────── */
-function buildTopScore(panel, g){
-  const REG_WEEKS = Math.max(...(g.activeWeeks.length ? g.activeWeeks : [14]));
-
-  // Best single starter performance per roster, regular season only.
-  const best = {};
-  for(let w = 1; w <= REG_WEEKS; w++){
-    (matchups[w] || []).forEach(m => {
-      if(!m.players_points || !m.starters) return;
-      m.starters.forEach(pid => {
-        const pts = m.players_points[pid] || 0;
-        if(pts <= 0) return;
-        const cur = best[m.roster_id];
-        if(!cur || pts > cur.pts) best[m.roster_id] = { pts, pid, w, rid: m.roster_id };
-      });
-    });
-  }
-
-  const rows = rosters
-    .map(r => ({ r, best: best[r.roster_id] || null }))
-    .sort((a, b) => (b.best ? b.best.pts : -1) - (a.best ? a.best.pts : -1));
-
-  // One entry per roster — leader cards and My Season rank off this.
-  capSt('topgun', rows.filter(x => x.best).map(x => ({ rid: x.r.roster_id, val: x.best.pts.toFixed(1) + ' pts' })));
-
-  const top = rows.find(x => x.best);
-  if(!top){ panel.appendChild(emptyCard(g, '👻')); return; }
-
-  // Record banner
-  if(top.best.pts > TYREEK_RECORD){
-    const hero = document.createElement('div');
-    hero.className = 'tyreek-hero';
-    hero.innerHTML = `<div class="tyreek-icon">👑</div><div class="tyreek-txt">
-      <h3>Record broken!</h3>
-      <p>${esc(pName(top.best.pid))} — ${top.best.pts.toFixed(1)} pts in Week ${top.best.w} for ${esc(tName(top.r))}.
-      The old mark was ${TYREEK_RECORD}, set by ${esc(LEAGUE_CONFIG.tyreekHolder)} in ${LEAGUE_CONFIG.tyreekYear}.</p></div>`;
-    panel.appendChild(hero);
-  } else {
-    const safe = document.createElement('div');
-    safe.className = 'tyreek-safe';
-    safe.innerHTML = `<div class="icon">👻</div><div class="label">${TYREEK_RECORD} still stands</div>
-      <div class="sub">${esc(LEAGUE_CONFIG.tyreekHolder)}, Week ${LEAGUE_CONFIG.tyreekWeek}, ${LEAGUE_CONFIG.tyreekYear} ·
-      Closest so far: <strong style="color:var(--text);">${top.best.pts.toFixed(1)}</strong>
-      (${esc(pName(top.best.pid))}, W${top.best.w}) — ${(TYREEK_RECORD - top.best.pts).toFixed(1)} short</div>`;
-    panel.appendChild(safe);
-  }
-
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML = gameCardHead(g, null, 'Best single starter week · W1–W' + REG_WEEKS);
-  const t = mkTable(['', 'Team', 'Player', 'Week', '>Score', '>vs Record']);
-  rows.forEach(({ r, best: b }, i) => {
-    const lead = i === 0 && b;
-    const tr = document.createElement('tr');
-    if(lead) tr.className = 'leader-row';
-    if(!b){
-      tr.innerHTML = `<td class="rank-num">—</td>${teamCell(r)}
-        <td class="tdc" style="color:var(--text3);">—</td><td class="mv">—</td>
-        <td class="mv r">—</td><td class="mv r">—</td>`;
-    } else {
-      const diff = b.pts - TYREEK_RECORD;
-      tr.innerHTML = `
-        <td class="rank-num">${i+1}</td>
-        ${teamCell(r)}
-        <td class="tdc" style="font-weight:600;">${esc(pName(b.pid))}</td>
-        <td class="mv">W${b.w}</td>
-        <td class="mv r bold" style="color:var(--g);">${lead ? '<span class="badge badge-green">👑</span> ' : ''}${b.pts.toFixed(1)}</td>
-        <td class="mv r" style="color:${diff > 0 ? 'var(--c1)' : 'var(--text3)'};">${diff > 0 ? '+' + diff.toFixed(1) : diff.toFixed(1)}</td>`;
-    }
-    t.querySelector('tbody').appendChild(tr);
-  });
-  card.appendChild(t);
-  panel.appendChild(card);
-}
-
-/* ── TURDUCKEN — Thanksgiving four-player draft ──────────────────────────── */
-function buildTurducken(panel, g){
-  const rows = sheets.turducken || [];
-  if(!rows.length){ panel.appendChild(emptyCard(g, '🦃')); return; }
-
-  const SLOTS = [['qb','QB'], ['rb','RB'], ['wr','WR'], ['te','TE']];
-  const num = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
-
-  const entries = rows.map(row => {
-    const rid = String(row.roster_id || '');
-    const ros = rosters.find(r => String(r.roster_id) === rid);
-    const picks = SLOTS.map(([key, label]) => ({
-      label,
-      name: row[key + '_name'] || row[key] || '',
-      pts: num(row[key + '_pts'])
-    }));
-    const scored = picks.filter(p => p.pts !== null);
-    const total = scored.length ? scored.reduce((a, p) => a + p.pts, 0) : null;
-    return { ros, rid, name: ros ? tName(ros) : (row.team_name || 'Team ' + rid),
-             picks, total, guess: num(row.tiebreak_guess) };
-  }).filter(e => e.picks.some(p => p.name));
-
-  if(!entries.length){ panel.appendChild(emptyCard(g, '🦃')); return; }
-
-  // Tiebreak: closest guess without going over the actual combined total.
-  const actual = num(sheets.meta.turducken_tiebreak_actual);
-  const tbGame = sheets.meta.turducken_tiebreak_game || 'the primetime Thursday game';
-  const tbRank = e => {
-    if(actual === null || e.guess === null) return Infinity;
-    const d = actual - e.guess;
-    return d < 0 ? Infinity : d;          // over the number is out
-  };
-
-  entries.sort((a, b) => {
-    const at = a.total === null ? -1 : a.total, bt = b.total === null ? -1 : b.total;
-    if(bt !== at) return bt - at;
-    return tbRank(a) - tbRank(b);
-  });
-
-  capSt('turducken', entries.filter(e => e.total !== null && e.ros)
-    .map(e => ({ rid: e.ros.roster_id, val: e.total.toFixed(1) })));
-
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML = gameCardHead(g, null, 'Four players · Wed–Fri combined');
-
-  const t = mkTable(['', 'Team', 'QB', 'RB', 'WR', 'TE', '>Total']);
-  entries.forEach((e, i) => {
-    const lead = i === 0 && e.total !== null;
-    const tr = document.createElement('tr');
-    if(lead) tr.className = 'leader-row';
-    const cells = e.picks.map(p => `<td class="tdc" style="font-size:12px;line-height:1.3;">
-      <div style="font-weight:600;">${esc(p.name || '—')}</div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);">${p.pts !== null ? p.pts.toFixed(1) : '—'}</div></td>`).join('');
-    tr.innerHTML = `
-      <td class="rank-num">${i+1}</td>
-      ${e.ros ? teamCell(e.ros) : `<td class="tdc" style="font-weight:600;">${esc(e.name)}</td>`}
-      ${cells}
-      <td class="mv r bold" style="color:var(--g);">${lead ? '<span class="badge badge-green">👑</span> ' : ''}${e.total !== null ? e.total.toFixed(1) : '—'}</td>`;
-    t.querySelector('tbody').appendChild(tr);
-  });
-  card.appendChild(t);
-  panel.appendChild(card);
-
-  // Tiebreak card — only worth showing once anyone has guessed
-  if(!entries.some(e => e.guess !== null)) return;
-  const tb = document.createElement('div');
-  tb.className = 'card';
-  tb.innerHTML = `<div class="card-head"><div>
-    <div class="card-title" style="color:var(--g)">Tiebreaker</div>
-    <div class="card-sub">Combined score, ${esc(tbGame)}${actual !== null ? ' · actual ' + actual : ' · not final yet'}</div>
-  </div></div>`;
-  const tbt = mkTable(['Team', '>Guess', '>Off By']);
-  [...entries].sort((a, b) => tbRank(a) - tbRank(b)).forEach(e => {
-    const d = tbRank(e);
-    const over = actual !== null && e.guess !== null && e.guess > actual;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      ${e.ros ? teamCell(e.ros) : `<td class="tdc" style="font-weight:600;">${esc(e.name)}</td>`}
-      <td class="mv r">${e.guess !== null ? e.guess : '—'}</td>
-      <td class="mv r" style="color:${over ? 'var(--c3)' : 'var(--text2)'};">${
-        e.guess === null || actual === null ? '—' : (over ? 'over' : d)}</td>`;
-    tbt.querySelector('tbody').appendChild(tr);
-  });
-  tb.appendChild(tbt);
-  panel.appendChild(tb);
 }
 
 /* ═══ HISTORY ═══════════════════════════════════════════════════════════════ */
