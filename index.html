@@ -34,7 +34,7 @@
     <span id="leagueAvatarWrap"><span class="league-avatar-placeholder">🏈</span></span>
     <span class="league-text">
       <span class="league-name"><span id="leagueName">League</span><span class="league-caret" aria-hidden="true">▾</span></span>
-      <span class="header-title">Mini<em>Games</em> <span class="header-season" id="headerSeason">· 2026</span></span>
+      <span class="header-title" onclick="event.stopPropagation();goToLanding()" title="All leagues">Mini<em>Games</em> <span class="header-season" id="headerSeason">· 2026</span></span>
     </span>
   </button>
   <div class="header-actions">
@@ -58,6 +58,9 @@
 <div class="rail" id="gameRail" hidden></div>
 
 <main>
+  <!-- Landing — shown before a league is chosen -->
+  <div class="page" id="page-landing"></div>
+
   <!-- Overview -->
   <div class="page" id="page-overview">
     <div id="trailerSlot"></div>
