@@ -1,0 +1,318 @@
+{
+  "_setup": [
+    "TODO before this league works:",
+    "  1. liveId    — the Sleeper league id for 2026 (find it in the Sleeper league URL)",
+    "  2. seasons   — one entry per year you want on the History page",
+    "  3. sheets    — publish each tab of the Dynasty Bruh sheet to CSV and paste the urls",
+    "  4. week1Date — already correct for 2026, leave it",
+    "  5. games     — copied from The Dynasty. Change names, payouts, or delete any you don't run.",
+    "Delete this _setup block once you're done."
+  ],
+  "slug": "bruh",
+  "leagueName": "Dynasty Bruh",
+  "season": "2026",
+  "storeKey": "minigames_bruh_2026",
+  "sheetsApi": "PASTE_APPS_SCRIPT_WEB_APP_EXEC_URL",
+  "liveId": "PASTE_SLEEPER_LEAGUE_ID_HERE",
+  "testId": "PASTE_SLEEPER_LEAGUE_ID_HERE",
+  "seasons": [
+    {
+      "year": 2026,
+      "id": "PASTE_SLEEPER_LEAGUE_ID_HERE"
+    }
+  ],
+  "sheets": {
+    "tactician": "PASTE_CSV_URL_FOR_TACTICIAN_TAB",
+    "long_game": "PASTE_CSV_URL_FOR_LONG_GAME_TAB",
+    "sleeper_picks": "PASTE_CSV_URL_FOR_SLEEPER_PICKS_TAB",
+    "turducken": "PASTE_CSV_URL_FOR_TURDUCKEN_TAB",
+    "meta": "PASTE_CSV_URL_FOR_META_TAB"
+  },
+  "week1Date": "2026-09-09",
+  "tyreekRecord": 0,
+  "tyreekHolder": "TBD",
+  "tyreekWeek": 0,
+  "tyreekYear": 0,
+  "deadlines": [
+    {
+      "id": "longgame",
+      "label": "Long Game Nominations (preseason)",
+      "gameId": "longgame",
+      "date": "2026-09-06T12:00:00-04:00"
+    },
+    {
+      "id": "sleeper",
+      "label": "Sleeper Declarations",
+      "gameId": "sleeper",
+      "date": "2026-10-08T20:15:00-04:00"
+    },
+    {
+      "id": "turducken",
+      "label": "Turducken Bowl Locks",
+      "gameId": "turducken",
+      "date": "2026-11-25T20:00:00-05:00"
+    }
+  ],
+  "nameAliases": {},
+  "games": [
+    {
+      "id": "longgame",
+      "name": "The Long Game",
+      "builder": "longgame",
+      "color": "green",
+      "payout": 25,
+      "typeLabel": "Season Long",
+      "weeks": "Preseason nomination → Jan 3 · Incl. playoffs",
+      "activeWeeks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "blurb": "Nominate one player before kickoff. Biggest KTC gain by championship day wins.",
+      "desc": "Dynasty isn't won in a week. Nominate one player before the season kicks off — whoever's pick climbs the most in KTC Superflex value between then and championship day wins. Draft-day conviction, graded in January.",
+      "highlight": "Nominations close Sunday September 6, 2026 at noon ET — three days before kickoff. Starting KTC Superflex value is locked at that moment. Biggest gain by January 3, 2027 wins.",
+      "emptyHint": "Commissioner adds player nominations and weekly KTC Superflex values to the Google Sheet.",
+      "rules": [
+        "Nominations close Sunday September 6, 2026 at 12pm ET — before the season opens",
+        "Any player on your roster at that moment is eligible",
+        "Player must remain on your roster through W17 (fantasy playoffs)",
+        "Commissioner records KTC SF value each week and enters into the sheet",
+        "Includes regular season AND playoffs (W1–W17)",
+        "Final values captured Sunday January 3, 2027 at 12pm EST",
+        "Gain = final value minus starting value — highest gain wins",
+        "Tiebreaker: higher absolute final value"
+      ],
+      "decidedWeek": 17
+    },
+    {
+      "id": "tactician",
+      "name": "The Tactician",
+      "builder": "tactician",
+      "color": "gold",
+      "payout": 20,
+      "typeLabel": "Season Long",
+      "weeks": "W1–W14 · Regular Season",
+      "activeWeeks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "blurb": "Actual points vs. your perfect lineup. Highest season average wins.",
+      "desc": "Anyone can win with the right players. The Tactician wins with the right decisions. Tracks how close you get to your perfect lineup every week — actual points scored vs. maximum possible across the full regular season. Genius is in the details.",
+      "highlight": "Efficiency = actual ÷ max possible, carried to two decimals. Highest season average wins. Regular season W1–W14 only.",
+      "emptyHint": "Commissioner enters actual vs. max points each week in the Google Sheet.",
+      "rules": [
+        "Efficiency = actual points scored ÷ max possible points that week",
+        "Max possible = the optimal starting lineup from your roster given your position slots",
+        "Commissioner calculates and enters weekly after each game week",
+        "All 14 regular season weeks counted",
+        "Season average efficiency determines the winner, carried to two decimal places",
+        "A week only counts once both numbers are entered",
+        "First tiebreaker: most efficient single week",
+        "Still tied: compare second-best weeks, then third, and so on until one is higher",
+        "Final fallback: fewest total points left on the bench"
+      ],
+      "decidedWeek": 14
+    },
+    {
+      "id": "sleeper",
+      "name": "The Sleeper",
+      "builder": "sleeper",
+      "color": "blue",
+      "payout": 20,
+      "typeLabel": "Multi-Week · W5–14",
+      "weeks": "Acquire W1–4 · Baseline W1–4 · Perf W5–14",
+      "activeWeeks": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "blurb": "Pick up a guy in W1–4. Biggest jump over his early-season baseline wins.",
+      "desc": "Every league has a guy who saw it coming. Acquire a player in Weeks 1–4 and declare your pick before W5 — the manager whose player shows the biggest average score improvement from their W1–4 baseline to their W5–14 performance wins. Check the wire, work the trade block, get off the bench and make a move.",
+      "highlight": "Baseline = his real W1–4 average, whoever rostered him. Performance = W5–14 average with the lowest week dropped. Biggest gain wins.",
+      "emptyHint": "Declare your pick before Week 5 locks — the table fills in as the season runs.",
+      "rules": [
+        "Eligible: any player added to your roster in W1–4 via waiver, free agency, or trade",
+        "Pre-season roster does not count — it has to be a new acquisition",
+        "He must have played at least 2 games in W1–4 — no stashing an injured starter",
+        "Declare your pick before W5 locks, and he must be on your roster at that moment",
+        "Baseline = his actual fantasy points in W1–4, averaged over the games he played",
+        "Baseline counts his real production regardless of who rostered him — waiver weeks included",
+        "Weeks he was injured, inactive, or on bye are left out of the baseline, not counted as zero",
+        "Commissioner enters baseline values in the sheet",
+        "Performance = W5–14 average with the lowest-scoring week dropped (neutralizes the bye)",
+        "Winner = highest (performance average − baseline average)",
+        "Must still own him at the end of W14",
+        "Tiebreaker: higher performance average"
+      ],
+      "decidedWeek": 14
+    },
+    {
+      "id": "cardiac",
+      "name": "Cardiac King",
+      "builder": "cardiac",
+      "color": "red",
+      "payout": 15,
+      "typeLabel": "Multi-Week · W1–4",
+      "weeks": "W1–4 · Closest 3 of 4",
+      "activeWeeks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "blurb": "Closest margins in W1–4, win or lose. Your biggest blowout gets dropped.",
+      "desc": "Blowouts are boring. Cardiac King goes to whoever spends September sweating — the manager whose Weeks 1–4 matchups land on the thinnest margins, win or lose. Your ugliest week gets thrown out, so one blowout won't cost you it. Close only counts in horseshoes, hand grenades, and this.",
+      "highlight": "Margin is absolute — a 2-point win and a 2-point loss score identically. Best 3 of 4 weeks; your worst is dropped.",
+      "emptyHint": "Fills in automatically from Sleeper once Week 1 scores post.",
+      "rules": [
+        "Margin = |your score − opponent's score|",
+        "Wins and losses count exactly the same — only the margin matters",
+        "All 4 weeks tracked, your largest margin dropped",
+        "Average of the 3 closest margins wins",
+        "Tiebreaker: lowest total margin across all 4 weeks"
+      ],
+      "decidedWeek": 4
+    },
+    {
+      "id": "comeback",
+      "name": "Not Dead Yet",
+      "builder": "comeback",
+      "color": "purple",
+      "payout": 15,
+      "typeLabel": "Multi-Week · W10–14",
+      "weeks": "W10–14 · Best Single Jump",
+      "activeWeeks": [
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "blurb": "Biggest week-over-week scoring jump in the home stretch.",
+      "desc": "You had a bad week. It was one week. The biggest single week-over-week scoring jump across Weeks 10 through 14 takes it — proof that being buried in November means nothing if you can still put up a number. There's always next week.",
+      "highlight": "Best single positive jump between back-to-back weeks in W10–14. One good Sunday is all it takes.",
+      "emptyHint": "Fills in automatically from Sleeper once Week 10 scores post.",
+      "rules": [
+        "Tracks score from one week to the next",
+        "Best single positive jump across W10–14 wins",
+        "Must be an improvement (positive delta only)",
+        "Tiebreaker: higher absolute score in the better week"
+      ],
+      "decidedWeek": 14
+    },
+    {
+      "id": "turducken",
+      "name": "Turducken Bowl",
+      "builder": "comingsoon",
+      "color": "orange",
+      "payout": 10,
+      "typeLabel": "Single Week · W12",
+      "weeks": "Wed Nov 25 – Fri Nov 27",
+      "activeWeeks": [
+        12
+      ],
+      "decidedWeek": 12,
+      "blurb": "Four players. One lineup. Three days of Thanksgiving football.",
+      "desc": "Five games across Wednesday, Thursday and Friday of Thanksgiving week — the first three-day slate in NFL history. You'll build one lineup from it. Anybody's players, not just the ones on your roster. Full rules drop closer to the date.",
+      "teaser": "Rules still cooking.",
+      "teaserFacts": [
+        {
+          "label": "Prize",
+          "value": "$10"
+        },
+        {
+          "label": "Slate",
+          "value": "5 games · 10 teams"
+        },
+        {
+          "label": "Locks",
+          "value": "Wed Nov 25, 8pm ET"
+        },
+        {
+          "label": "Format",
+          "value": "Announced closer to the date"
+        }
+      ],
+      "highlight": "One lineup from the Thanksgiving slate. Everything else is still being worked out.",
+      "emptyHint": "Rules drop closer to Thanksgiving.",
+      "rules": [
+        "Four players from the Wednesday–Friday Thanksgiving games",
+        "Any player is eligible — he does not have to be on your fantasy roster",
+        "Everything locks before Wednesday kickoff",
+        "Scoring, roster construction and tiebreakers announced closer to the date"
+      ]
+    },
+    {
+      "id": "topgun",
+      "name": "Top Gun",
+      "builder": "topscore",
+      "color": "teal",
+      "payout": 15,
+      "typeLabel": "Season Long",
+      "weeks": "W1–W14 · Regular Season",
+      "activeWeeks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "decidedWeek": 14,
+      "blurb": "Highest single-player week of the season. Somebody wins this every year.",
+      "desc": "One guy, one week, the biggest number anybody puts up all season. Highest score by any single starter in any regular-season week takes it. Tyreek Hill's 64.9 from 2020 is still the league record — clear it and you take the record along with the money.",
+      "highlight": "Player must be in your starting lineup — bench doesn't count. Beat 64.9 and your name goes in the record book.",
+      "emptyHint": "Fills in automatically from Sleeper once Week 1 scores post.",
+      "rules": [
+        "Highest single-player score in any one week, W1–W14, wins",
+        "Player must be in your starting lineup — bench scores don't count",
+        "Any position is eligible",
+        "Regular season only — playoff weeks don't count",
+        "Your best week is what counts; only your top performance is ranked",
+        "Beat the all-time league record (64.9) and it goes in the record book under your name",
+        "Tiebreaker: whoever hit the score in the earlier week"
+      ]
+    }
+  ]
+}
