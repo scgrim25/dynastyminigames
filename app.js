@@ -746,6 +746,66 @@ function toggleRules(btn){
   btn.textContent = open ? 'Rules ↑' : 'Rules ↓';
 }
 
+
+/* ── TRAILER ─────────────────────────────────────────────────────────────────
+   Config-driven, per league. Renders nothing when the league has no trailer.
+   Shows big once, then collapses to a slim link so it never gets in the way
+   of the standings on repeat visits. */
+function buildTrailer(){
+  const wrap = $('trailerSlot');
+  if(!wrap) return;
+  const t = LEAGUE_CONFIG && LEAGUE_CONFIG.trailer;
+  if(!t || !t.src){ wrap.innerHTML = ''; return; }
+
+  const seen = !!saved.trailerSeen;
+  const isEmbed = /youtube|youtu\.be|vimeo|player\./i.test(t.src);
+
+  if(seen){
+    wrap.innerHTML = `<button class="trailer-mini" onclick="openTrailer()">
+      <span class="trailer-mini-icon" aria-hidden="true">▶</span>
+      <span>${esc(t.miniLabel || 'Watch the trailer')}</span></button>`;
+    return;
+  }
+
+  wrap.innerHTML = `<div class="trailer" id="trailerBox">
+    <button class="trailer-poster" onclick="openTrailer()" aria-label="Play the trailer">
+      ${t.poster ? `<img src="${esc(t.poster)}" alt="">` : '<span class="trailer-fallback"></span>'}
+      <span class="trailer-play" aria-hidden="true">▶</span>
+      ${t.caption ? `<span class="trailer-caption">${esc(t.caption)}</span>` : ''}
+    </button>
+    <button class="trailer-skip" onclick="dismissTrailer()">Skip</button>
+  </div>`;
+  wrap.dataset.embed = String(isEmbed);
+}
+
+function openTrailer(){
+  const t = LEAGUE_CONFIG && LEAGUE_CONFIG.trailer;
+  const wrap = $('trailerSlot');
+  if(!t || !wrap) return;
+  const isEmbed = /youtube|youtu\.be|vimeo|player\./i.test(t.src);
+
+  wrap.innerHTML = `<div class="trailer playing">
+    ${isEmbed
+      ? `<iframe src="${esc(t.src)}${t.src.includes('?') ? '&' : '?'}autoplay=1" title="${esc(t.title || 'League trailer')}"
+           allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe>`
+      : `<video src="${esc(t.src)}" ${t.poster ? `poster="${esc(t.poster)}"` : ''}
+           controls autoplay playsinline preload="metadata"></video>`}
+    <button class="trailer-skip" onclick="dismissTrailer()">Close</button>
+  </div>`;
+  markTrailerSeen();
+}
+
+function markTrailerSeen(){
+  if(saved.trailerSeen) return;
+  saved.trailerSeen = true;
+  saveStore();
+}
+
+function dismissTrailer(){
+  markTrailerSeen();
+  buildTrailer();
+}
+
 /* ── OVERVIEW: my team strip ─────────────────────────────────────────────── */
 
 function buildMyStrip(){
@@ -2403,6 +2463,7 @@ function downloadReportImage(){
 /* ═══ INIT ══════════════════════════════════════════════════════════════════ */
 
 function buildAll(){
+  buildTrailer();
   buildGames();
   buildMyStrip();
   buildCountdowns();
@@ -2426,6 +2487,7 @@ function startApp(){
   syncHeaderOffset();
   buildLeagueSwitcher();
   buildNav();
+  buildTrailer();
   buildCalendar();
   buildGames();
   buildCountdowns();
