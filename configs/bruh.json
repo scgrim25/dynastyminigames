@@ -1,11 +1,9 @@
 {
   "_setup": [
-    "TODO before this league works:",
-    "  1. liveId    — the Sleeper league id for 2026 (find it in the Sleeper league URL)",
-    "  2. seasons   — one entry per year you want on the History page",
-    "  3. sheets    — publish each tab of the Dynasty Bruh sheet to CSV and paste the urls",
-    "  4. week1Date — already correct for 2026, leave it",
-    "  5. games     — copied from The Dynasty. Change names, payouts, or delete any you don't run.",
+    "Still TODO:",
+    "  sheetsApi — deploy Code.gs from the Dynasty Bruh sheet and paste the /exec url",
+    "  sheets    — optional CSV fallback urls, or delete the block once the API works",
+    "  games     — copied from The Dynasty. Change names, payouts, or delete any you don't run.",
     "Delete this _setup block once you're done."
   ],
   "slug": "bruh",
@@ -13,12 +11,28 @@
   "season": "2026",
   "storeKey": "minigames_bruh_2026",
   "sheetsApi": "PASTE_APPS_SCRIPT_WEB_APP_EXEC_URL",
-  "liveId": "PASTE_SLEEPER_LEAGUE_ID_HERE",
-  "testId": "PASTE_SLEEPER_LEAGUE_ID_HERE",
+  "liveId": "1312203243723448320",
+  "testId": "1312203243723448320",
   "seasons": [
     {
       "year": 2026,
-      "id": "PASTE_SLEEPER_LEAGUE_ID_HERE"
+      "id": "1312203243723448320"
+    },
+    {
+      "year": 2025,
+      "id": "1200245752664690688"
+    },
+    {
+      "year": 2024,
+      "id": "1050788505678483456"
+    },
+    {
+      "year": 2023,
+      "id": "957432263203991552"
+    },
+    {
+      "year": 2022,
+      "id": "839493220277825536"
     }
   ],
   "sheets": {
