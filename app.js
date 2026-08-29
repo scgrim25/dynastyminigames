@@ -1607,6 +1607,7 @@ async function loadHistory(){
     } catch(e){ console.warn('history: failed ' + s.year, e); }
   }));
 
+  buildManagerNames();
   buildHistoryPage(container);
 }
 
@@ -1618,7 +1619,32 @@ function hAV(r,u){
   if(x.avatar) return `https://sleepercdn.com/avatars/thumbs/${x.avatar}`;
   return null;
 }
-function hKey(r,u){ return hDN(r,u) || hTN(r,u); }
+/* Identity across seasons.
+   Sleeper's user_id never changes — not when someone renames their team, and
+   not when they rename their username. So key history on the id and look the
+   display name up separately. nameAliases still works, and now accepts either
+   a user_id (someone who made a second Sleeper account) or an old username. */
+function hKey(r,u){
+  const x = u.find(v => v.user_id === r.owner_id) || {};
+  const id = r.owner_id || x.user_id || '';
+  if(id && NAME_ALIASES[id]) return NAME_ALIASES[id];
+  if(id) return id;
+  return normalizeName(x.display_name || '') || hTN(r,u);
+}
+
+/* id -> the name to show, taken from the most recent season they appear in. */
+let MANAGER_NAMES = {};
+function buildManagerNames(){
+  MANAGER_NAMES = {};
+  Object.keys(histData).map(Number).sort((a,b) => b - a).forEach(year => {
+    const d = histData[year];
+    d.rosters.forEach(r => {
+      const key = hKey(r, d.users);
+      if(!MANAGER_NAMES[key]) MANAGER_NAMES[key] = hDN(r, d.users) || hTN(r, d.users);
+    });
+  });
+}
+function hLabel(key){ return MANAGER_NAMES[key] || key; }
 
 function getChampion(d){
   if(!d.bracket || !d.bracket.length) return null;
@@ -1668,7 +1694,7 @@ function buildH2H(filterNames = null){
       });
     });
   });
-  return { h2h, names: [...allNames].sort() };
+  return { h2h, names: [...allNames].sort((a,b) => hLabel(a).localeCompare(hLabel(b))) };
 }
 
 function buildAllTimeStandings(filterNames = null){
@@ -1681,7 +1707,7 @@ function buildAllTimeStandings(filterNames = null){
       const key = hKey(r, data.users);
       if(!key) return;
       if(filterNames && !filterNames.has(key)) return;
-      stats[key] ||= { name:key, wins:0, losses:0, seasons:0, titles:0, runnerUps:0, ptsFor:0, maxPts:0, weekScores:[], av:hAV(r, data.users) };
+      stats[key] ||= { name:hLabel(key), wins:0, losses:0, seasons:0, titles:0, runnerUps:0, ptsFor:0, maxPts:0, weekScores:[], av:hAV(r, data.users) };
       stats[key].seasons++;
       stats[key].wins += r.settings?.wins || 0;
       stats[key].losses += r.settings?.losses || 0;
@@ -1816,9 +1842,15 @@ function switchHistView(year, btn){
 
 function getCurrentFilter(){
   if(window._histView !== 'current') return null;
-  const names = new Set();
-  (users || []).forEach(u => names.add(normalizeName(u.display_name || '')));
-  return names.size ? names : null;
+  const ids = new Set();
+  (users || []).forEach(u => {
+    const id = u.user_id || '';
+    ids.add(NAME_ALIASES[id] || id);
+    // legacy: configs that aliased by username still resolve
+    const n = normalizeName(u.display_name || '');
+    if(n) ids.add(n);
+  });
+  return ids.size ? ids : null;
 }
 
 function buildAllTimeView(container){
@@ -1870,11 +1902,11 @@ function buildAllTimeView(container){
   const rb = document.createElement('div');
   rb.style.padding = '4px 20px';
   [
-    { icon:'🔥', title:`Highest single week · W${r.highScore.week}, ${r.highScore.year}`, name:r.highScore.name, val:r.highScore.val.toFixed(2) },
-    { icon:'😬', title:`Lowest single week · W${r.lowScore.week}, ${r.lowScore.year}`, name:r.lowScore.name, val:r.lowScore.val.toFixed(2) },
-    { icon:'💥', title:`Biggest margin · W${r.bigMargin.week} ${r.bigMargin.year} over ${r.bigMargin.lossName || '?'}`, name:r.bigMargin.winName, val:r.bigMargin.val.toFixed(1) },
-    { icon:'📈', title:`Most points in a season · ${r.mostPts.year}`, name:r.mostPts.name, val:r.mostPts.val.toFixed(1) },
-    { icon:'👑', title:'Most all-time wins', name:r.mostWins?.name, val:r.mostWins ? r.mostWins.val + ' W' : '—' }
+    { icon:'🔥', title:`Highest single week · W${r.highScore.week}, ${r.highScore.year}`, name:hLabel(r.highScore.name), val:r.highScore.val.toFixed(2) },
+    { icon:'😬', title:`Lowest single week · W${r.lowScore.week}, ${r.lowScore.year}`, name:hLabel(r.lowScore.name), val:r.lowScore.val.toFixed(2) },
+    { icon:'💥', title:`Biggest margin · W${r.bigMargin.week} ${r.bigMargin.year} over ${r.bigMargin.lossName ? hLabel(r.bigMargin.lossName) : '?'}`, name:hLabel(r.bigMargin.winName), val:r.bigMargin.val.toFixed(1) },
+    { icon:'📈', title:`Most points in a season · ${r.mostPts.year}`, name:hLabel(r.mostPts.name), val:r.mostPts.val.toFixed(1) },
+    { icon:'👑', title:'Most all-time wins', name:r.mostWins ? hLabel(r.mostWins.name) : '—', val:r.mostWins ? r.mostWins.val + ' W' : '—' }
   ].forEach(item => {
     const row = document.createElement('div');
     row.className = 'rec-row';
@@ -1897,13 +1929,14 @@ function buildAllTimeView(container){
   const ht = document.createElement('table');
   ht.className = 'h2h-table';
   ht.innerHTML = `<thead><tr><th scope="col" class="h2h-row-head">↓ vs →</th>${
-    names.map(n => `<th scope="col" title="${esc(n)}">${esc(n.length > 9 ? n.slice(0,8) + '…' : n)}</th>`).join('')}</tr></thead>`;
+    names.map(n => { const L = hLabel(n);
+      return `<th scope="col" title="${esc(L)}">${esc(L.length > 9 ? L.slice(0,8) + '…' : L)}</th>`; }).join('')}</tr></thead>`;
   const tb = document.createElement('tbody');
   names.forEach(rn => {
     const tr = document.createElement('tr');
     const totW = Object.values(h2h[rn] || {}).reduce((a,b) => a + b.w, 0);
     const totL = Object.values(h2h[rn] || {}).reduce((a,b) => a + b.l, 0);
-    tr.innerHTML = `<td class="h2h-row-head"><div style="font-weight:700;font-size:12px;">${esc(rn)}</div>
+    tr.innerHTML = `<td class="h2h-row-head"><div style="font-weight:700;font-size:12px;">${esc(hLabel(rn))}</div>
       <div style="font-family:var(--mono);font-size:10px;color:var(--text3);">${totW}W–${totL}L</div></td>`
       + names.map(cn => {
         if(rn === cn) return '<td class="h2h-self">—</td>';
@@ -1911,7 +1944,7 @@ function buildAllTimeView(container){
         if(!rec || (!rec.w && !rec.l)) return '<td class="h2h-even" style="color:var(--text3);">—</td>';
         const cls = rec.w > rec.l ? 'h2h-win' : rec.l > rec.w ? 'h2h-loss' : 'h2h-even';
         const pct = ((rec.w / (rec.w + rec.l)) * 100).toFixed(0);
-        return `<td class="${cls}" title="${esc(rn)} vs ${esc(cn)}: ${rec.w}W ${rec.l}L">
+        return `<td class="${cls}" title="${esc(hLabel(rn))} vs ${esc(hLabel(cn))}: ${rec.w}W ${rec.l}L">
           <div style="font-weight:800;font-size:14px;line-height:1.1;">${rec.w}–${rec.l}</div>
           <div style="font-size:10px;font-weight:600;opacity:.75;">${pct}%</div></td>`;
       }).join('');
