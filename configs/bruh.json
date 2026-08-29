@@ -1,16 +1,21 @@
 {
   "_setup": [
-    "Still TODO:",
-    "  sheetsApi — deploy Code.gs from the Dynasty Bruh sheet and paste the /exec url",
-    "  sheets    — optional CSV fallback urls, or delete the block once the API works",
-    "  games     — copied from The Dynasty. Change names, payouts, or delete any you don't run.",
-    "Delete this _setup block once you're done."
+    "Optional: set tyreekRecord to Dynasty Bruh's all-time single-week high, if you know it.",
+    "At 0, Top Gun treats any score as a record. Leave it and this season establishes one.",
+    "Delete this _setup block whenever."
   ],
   "slug": "bruh",
   "leagueName": "Dynasty Bruh",
   "season": "2026",
+  "trailer": {
+    "src": "media/bruh-2026.mp4",
+    "poster": "media/bruh-2026.jpg",
+    "caption": "Seven games. One season. $120 on the line.",
+    "title": "League trailer",
+    "miniLabel": "Watch the trailer"
+  },
   "storeKey": "minigames_bruh_2026",
-  "sheetsApi": "PASTE_APPS_SCRIPT_WEB_APP_EXEC_URL",
+  "sheetsApi": "https://script.google.com/macros/s/AKfycbznr3E47Dm4mbIyyjGTa7uWR3gt3T58-khnUU1-WFN-cQxU9FK6TIXBeHPU45lzgapJnQ/exec",
   "liveId": "1312203243723448320",
   "testId": "1312203243723448320",
   "seasons": [
@@ -35,13 +40,6 @@
       "id": "839493220277825536"
     }
   ],
-  "sheets": {
-    "tactician": "PASTE_CSV_URL_FOR_TACTICIAN_TAB",
-    "long_game": "PASTE_CSV_URL_FOR_LONG_GAME_TAB",
-    "sleeper_picks": "PASTE_CSV_URL_FOR_SLEEPER_PICKS_TAB",
-    "turducken": "PASTE_CSV_URL_FOR_TURDUCKEN_TAB",
-    "meta": "PASTE_CSV_URL_FOR_META_TAB"
-  },
   "week1Date": "2026-09-09",
   "tyreekRecord": 0,
   "tyreekHolder": "TBD",
