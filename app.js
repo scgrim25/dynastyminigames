@@ -2492,8 +2492,19 @@ async function sendSubmission(gameId){
         value: value
       })
     });
-    const out = await r.json();
-    if(!out || !out.ok) throw new Error((out && out.error) || 'rejected');
+
+    const raw = await r.text();
+    let out = null;
+    try { out = JSON.parse(raw); } catch(e){ /* fall through to diagnostics */ }
+
+    if(!out){
+      // An HTML body almost always means the deployment predates doPost.
+      const looksHtml = /^\s*</.test(raw);
+      throw new Error(looksHtml
+        ? 'The web app answered with a page instead of data. Deploy a new version of the Apps Script (Deploy > Manage deployments > New version) so doPost exists.'
+        : 'Unexpected reply from the web app: ' + raw.slice(0, 120));
+    }
+    if(!out.ok) throw new Error(out.error || 'the script rejected it');
 
     msg.textContent = 'Locked in.'; msg.className = 'submit-msg good';
     btn.textContent = 'Submitted ✓';
@@ -2505,11 +2516,13 @@ async function sendSubmission(gameId){
     row[g.submission.field] = value;
     setTimeout(() => { buildSubmit(gameId); buildAll(); }, 900);
   } catch(e){
-    console.error(e);
-    msg.textContent = 'Didn\'t go through — try again.';
+    console.error('submission failed:', e);
+    msg.textContent = e.name === 'AbortError'
+      ? 'Timed out. The script may be waking up — try once more.'
+      : (e.message || 'Didn\'t go through.');
     msg.className = 'submit-msg bad';
     btn.disabled = false;
-    btn.textContent = 'Submit';
+    btn.textContent = 'Try again';
   }
 }
 
