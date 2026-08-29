@@ -1164,6 +1164,20 @@ function saveSleeperPick(rid, pid){
 }
 
 /* ── THE TACTICIAN ───────────────────────────────────────────────────────── */
+
+/* Tiebreak by best single week, then second-best, then third — high-card style.
+   Unlike bench points this is a ratio at every level, so roster strength cancels
+   out and a stacked team isn't structurally penalised. */
+function cmpWeekEffs(a, b){
+  const n = Math.max(a.length, b.length);
+  for(let i = 0; i < n; i++){
+    const x = a[i] === undefined ? -1 : a[i];
+    const y = b[i] === undefined ? -1 : b[i];
+    if(x !== y) return y - x;
+  }
+  return 0;
+}
+
 function buildTactician(panel, g){
   const sheetMax = sheets.tactician || [];
 
@@ -1181,34 +1195,43 @@ function buildTactician(panel, g){
   const byRoster = {};
   rosters.forEach(r => {
     const rid = String(r.roster_id);
-    byRoster[rid] = { actual: 0, max: 0, count: 0, weekData: {} };
+    byRoster[rid] = { actual: 0, max: 0, bench: 0, count: 0, weekData: {} };
     for(let w = 1; w <= 14; w++){
       const act = sleeperActual[r.roster_id]?.[w];
       const sheetRow = sheetMax.find(s => String(s.roster_id) === rid && String(s.week) === String(w));
       const mx = sheetRow ? parseFloat(sheetRow.max_pts || 0) : 0;
       if(act !== undefined){
-        byRoster[rid].actual += act;
-        if(mx > 0){ byRoster[rid].max += mx; byRoster[rid].count++; }
+        if(mx > 0){
+          byRoster[rid].actual += act;
+          byRoster[rid].max += mx;
+          byRoster[rid].bench += (mx - act);
+          byRoster[rid].count++;
+        }
         byRoster[rid].weekData[w] = { act, mx };
       }
     }
   });
 
   const rows = rosters.map(r => {
-    const d = byRoster[String(r.roster_id)] || { actual:0, max:0, count:0, weekData:{} };
-    return { r, d, avg: d.max > 0 ? d.actual / d.max : 0 };
-  }).sort((a,b) => b.avg - a.avg);
+    const d = byRoster[String(r.roster_id)] || { actual:0, max:0, bench:0, count:0, weekData:{} };
+    const weekEffs = Object.values(d.weekData)
+      .filter(x => x.mx > 0)
+      .map(x => x.act / x.mx)
+      .sort((x, y) => y - x);
+    return { r, d, weekEffs, avg: d.max > 0 ? d.actual / d.max : 0 };
+  }).sort((a,b) => (b.avg - a.avg) || cmpWeekEffs(a.weekEffs, b.weekEffs) || (a.d.bench - b.d.bench));
 
-  capSt('tactician', rows.filter(x => x.avg > 0).map(x => ({ rid: x.r.roster_id, val: (x.avg * 100).toFixed(1) + '%' })));
+  capSt('tactician', rows.filter(x => x.avg > 0).map(x => ({ rid: x.r.roster_id, val: (x.avg * 100).toFixed(2) + '%' })));
 
   if(!rows.some(x => x.avg > 0)){ panel.appendChild(emptyCard(g, '📈')); return; }
 
   const card = document.createElement('div');
   card.className = 'card';
   card.innerHTML = gameCardHead(g, null, 'Season average · Actual ÷ Max possible');
-  const t = mkTable(['','Team','>Actual Pts','>Max Possible','','>Efficiency']);
-  rows.forEach(({ r, d, avg }, i) => {
-    const pct = (avg * 100).toFixed(1);
+  const t = mkTable(['','Team','>Actual Pts','>Max Possible','>Bench','>Best Week','','>Efficiency']);
+  rows.forEach(({ r, d, weekEffs, avg }, i) => {
+    const pct = (avg * 100).toFixed(2);
+    const best = weekEffs.length ? (weekEffs[0] * 100).toFixed(1) + '%' : '—';
     const lead = i === 0;
     const barColor = avg > 0.9 ? 'var(--c1)' : avg > 0.8 ? 'var(--c2)' : 'var(--c3)';
     const tr = document.createElement('tr');
@@ -1218,6 +1241,8 @@ function buildTactician(panel, g){
       ${teamCell(r)}
       <td class="mv r">${d.actual.toFixed(1)}</td>
       <td class="mv r">${d.max.toFixed(1)}</td>
+      <td class="mv r" style="color:var(--text3);">${d.bench.toFixed(1)}</td>
+      <td class="mv r" style="color:var(--text3);">${best}</td>
       <td class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${barColor};"></div></div></td>
       <td class="mv r bold" style="color:${barColor};">${lead ? '<span class="badge badge-gold">👑</span> ' : ''}${pct}%</td>`;
     t.querySelector('tbody').appendChild(tr);
@@ -1264,16 +1289,16 @@ function renderTacticianWeek(wk, container){
       : ((matchups[wk] || []).find(m => m.roster_id === r.roster_id)?.points || 0);
     const mx = maxRow ? parseFloat(maxRow.max_pts || 0) : 0;
     return { r, act, mx, eff: mx > 0 ? act / mx : 0 };
-  }).filter(row => row.act > 0 || row.mx > 0).sort((a,b) => b.eff - a.eff);
+  }).filter(row => row.act > 0 || row.mx > 0).sort((a,b) => (b.eff - a.eff) || ((a.mx - a.act) - (b.mx - b.act)));
 
   if(!wRows.length){
     container.innerHTML = '<div class="card-empty">No data for this week yet.</div>';
     return;
   }
 
-  const wt = mkTable(['','Team','>Actual','>Max','','>Efficiency']);
+  const wt = mkTable(['','Team','>Actual','>Max','>Bench','','>Efficiency']);
   wRows.forEach((row, ri) => {
-    const pct = (row.eff * 100).toFixed(1);
+    const pct = (row.eff * 100).toFixed(2);
     const lead = ri === 0;
     const barColor = row.eff > 0.9 ? 'var(--c1)' : row.eff > 0.8 ? 'var(--c2)' : 'var(--c3)';
     const tr = document.createElement('tr');
@@ -1283,6 +1308,7 @@ function renderTacticianWeek(wk, container){
       ${teamCell(row.r)}
       <td class="mv r">${row.act.toFixed(1)}</td>
       <td class="mv r">${row.mx > 0 ? row.mx.toFixed(1) : '—'}</td>
+      <td class="mv r" style="color:var(--text3);">${row.mx > 0 ? (row.mx - row.act).toFixed(1) : '—'}</td>
       <td class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${barColor};"></div></div></td>
       <td class="mv r bold" style="color:${barColor};">${lead ? '<span class="badge badge-gold">👑</span> ' : ''}${pct}%</td>`;
     wt.querySelector('tbody').appendChild(tr);
