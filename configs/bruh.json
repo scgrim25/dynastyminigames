@@ -108,7 +108,15 @@
         "Gain = final value minus starting value — highest gain wins",
         "Tiebreaker: higher absolute final value"
       ],
-      "decidedWeek": 17
+      "decidedWeek": 17,
+      "submission": {
+        "label": "Nominate your Long Game player",
+        "help": "Any player on your roster right now. Locked once nominations close — pick the one you think climbs the most by January.",
+        "source": "roster",
+        "sheet": "long_game",
+        "field": "player_name",
+        "deadlineId": "longgame"
+      }
     },
     {
       "id": "tactician",
@@ -189,7 +197,15 @@
         "Must still own him at the end of W14",
         "Tiebreaker: higher performance average"
       ],
-      "decidedWeek": 14
+      "decidedWeek": 14,
+      "submission": {
+        "label": "Declare your Sleeper pick",
+        "help": "Only players you added in Weeks 1–4 by waiver, free agency, or trade. He must have played at least two of those weeks.",
+        "source": "acquisitions",
+        "sheet": "sleeper_picks",
+        "field": "player_name",
+        "deadlineId": "sleeper"
+      }
     },
     {
       "id": "cardiac",
