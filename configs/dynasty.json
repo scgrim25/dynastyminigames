@@ -2,8 +2,15 @@
   "slug": "dynasty",
   "leagueName": "The Dynasty",
   "season": "2026",
+  "trailer": {
+    "src": "media/dynasty-2026.mp4",
+    "poster": "media/dynasty-2026.jpg",
+    "caption": "Seven games. One season. $120 on the line.",
+    "title": "League trailer",
+    "miniLabel": "Watch the trailer"
+  },
   "storeKey": "minigames_dynasty_2026",
-  "sheetsApi": "PASTE_APPS_SCRIPT_WEB_APP_EXEC_URL",
+  "sheetsApi": "https://script.google.com/macros/s/AKfycbyxXrTdgQl1ARr50oMcoUZX-eik4GLNJgCgBm1abNuO-8LxGLk7rLW2jibmnlI_okU/exec",
   "liveId": "1312199586051276800",
   "testId": "1200247106455994368",
   "seasons": [
