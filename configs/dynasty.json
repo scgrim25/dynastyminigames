@@ -3,6 +3,7 @@
   "leagueName": "The Dynasty",
   "season": "2026",
   "storeKey": "minigames_dynasty_2026",
+  "sheetsApi": "PASTE_APPS_SCRIPT_WEB_APP_EXEC_URL",
   "liveId": "1312199586051276800",
   "testId": "1200247106455994368",
   "seasons": [
