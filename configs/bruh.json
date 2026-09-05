@@ -1,8 +1,4 @@
 {
-  "_setup": [
-    "Optional: set topGunRecord to Dynasty Bruh's all-time single-week high.",
-    "At 0, Top Gun treats any score as a record. Delete this block whenever."
-  ],
   "slug": "bruh",
   "leagueName": "Dynasty Bruh",
   "season": "2026",
