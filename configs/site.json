@@ -3,16 +3,13 @@
     "Optional. Controls the landing page shown before a league is chosen.",
     "Delete this file and visitors go straight to the first league in index.json."
   ],
-
   "title": "MiniGames",
   "tagline": "Side games for people who take their fantasy league too seriously",
-
   "trailer": {
-    "src": "https://www.youtube-nocookie.com/embed/ItijzXuOiWs",
-    "poster": "https://i.ytimg.com/vi/ItijzXuOiWs/maxresdefault.jpg",
+    "src": "https://www.youtube-nocookie.com/embed/YYy8t4Ta8uI",
+    "poster": "https://i.ytimg.com/vi/YYy8t4Ta8uI/maxresdefault.jpg",
     "title": "MiniGames"
   },
-
   "chooseLabel": "Choose your league",
   "footer": "Built for The Dynasty · dynastyminigames.com"
 }
