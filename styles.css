@@ -612,7 +612,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(45
 }
 .teaser-facts dd{font-size:13px;font-weight:600;color:var(--text);}
 
-/* ── TOP GUN RECORD BANNER ─────────────────────────────────────────────────────────────── */
+/* ── RECORD BANNER (used by the topscore builder) ────────────────────────── */
 .record-hero{
   background:linear-gradient(135deg,#064e3b,#065f46);color:#fff;border-radius:var(--r);
   padding:26px;margin-bottom:16px;display:flex;align-items:center;gap:20px;
