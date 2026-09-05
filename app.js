@@ -19,7 +19,7 @@ const $ = id => document.getElementById(id);
 /* Config-derived globals, populated by applyConfig() before the app boots. */
 let LEAGUE_CONFIG = null, LEAGUES_INDEX = [], SITE = null;
 let SLUG, LIVE_ID, TEST_ID, STORE, SEASON_IDS, SHEETS, SHEETS_API;
-let NAME_ALIASES, WEEK1_DATE, TYREEK_RECORD, DEADLINES, GAMES = [];
+let NAME_ALIASES, WEEK1_DATE, TOPGUN_RECORD, DEADLINES, GAMES = [];
 
 /* Runtime state */
 let rosters = [], users = [], matchups = {}, transactions = {}, players = {};
@@ -167,7 +167,7 @@ function applyConfig(cfg){
   SHEETS_API  = cfg.sheetsApi || '';
   NAME_ALIASES = cfg.nameAliases || {};
   WEEK1_DATE  = new Date(cfg.week1Date || '2026-09-04');
-  TYREEK_RECORD = cfg.tyreekRecord || 64.9;
+  TOPGUN_RECORD = Number(cfg.topGunRecord != null ? cfg.topGunRecord : cfg.tyreekRecord) || 0;
   DEADLINES   = cfg.deadlines || [];
   GAMES       = (cfg.games || []).map(normalizeGame);
 
@@ -933,59 +933,6 @@ function closeVideoOverlay(){
   document.body.classList.remove('video-open');
 }
 
-/* ── TRAILER ─────────────────────────────────────────────────────────────────
-   Config-driven, per league. Renders nothing when the league has no trailer.
-   Shows big once, then collapses to a slim link so it never gets in the way
-   of the standings on repeat visits. */
-function buildTrailer(){
-  const wrap = $('trailerSlot');
-  if(!wrap) return;
-  const t = LEAGUE_CONFIG && LEAGUE_CONFIG.trailer;
-  if(!t || !t.src){ wrap.innerHTML = ''; return; }
-
-  const seen = !!saved.trailerSeen;
-  const isEmbed = /youtube|youtu\.be|vimeo|player\./i.test(t.src);
-
-  if(seen){
-    wrap.innerHTML = `<button class="trailer-mini" onclick="openTrailer()">
-      <span class="trailer-mini-icon" aria-hidden="true">▶</span>
-      <span>${esc(t.miniLabel || 'Watch the trailer')}</span></button>`;
-    return;
-  }
-
-  wrap.innerHTML = `<div class="trailer" id="trailerBox">
-    <button class="trailer-poster" onclick="openTrailer()" aria-label="Play the trailer">
-      ${t.poster ? `<img src="${esc(t.poster)}" alt="">` : '<span class="trailer-fallback"></span>'}
-      <span class="trailer-play" aria-hidden="true">▶</span>
-      ${t.caption ? `<span class="trailer-caption">${esc(t.caption)}</span>` : ''}
-    </button>
-    <button class="trailer-skip" onclick="dismissTrailer()">Skip</button>
-  </div>`;
-  wrap.dataset.embed = String(isEmbed);
-}
-
-function openTrailer(){
-  const t = LEAGUE_CONFIG && LEAGUE_CONFIG.trailer;
-  if(!t || !t.src) return;
-  markTrailerSeen();
-  if(isMobile()){ openVideoOverlay(t); buildTrailer(); return; }
-  const wrap = $('trailerSlot');
-  if(!wrap) return;
-  wrap.innerHTML = `<div class="trailer playing">${videoMarkup(t)}
-    <button class="trailer-skip" onclick="dismissTrailer()">Close</button></div>`;
-}
-
-function markTrailerSeen(){
-  if(saved.trailerSeen) return;
-  saved.trailerSeen = true;
-  saveStore();
-}
-
-function dismissTrailer(){
-  markTrailerSeen();
-  buildTrailer();
-}
-
 /* ── OVERVIEW: my team strip ─────────────────────────────────────────────── */
 
 function buildMyStrip(){
@@ -1688,6 +1635,12 @@ function buildLongGame(panel, g){
   panel.appendChild(card);
 }
 
+/* Record-holder details, accepting either the new topGun* keys or the old
+   tyreek* ones so an un-migrated league config keeps working. */
+function topGunHolder(){ const c = LEAGUE_CONFIG || {}; return c.topGunHolder || c.tyreekHolder || ''; }
+function topGunWeek(){ const c = LEAGUE_CONFIG || {}; return c.topGunWeek != null ? c.topGunWeek : c.tyreekWeek; }
+function topGunYear(){ const c = LEAGUE_CONFIG || {}; return c.topGunYear != null ? c.topGunYear : c.tyreekYear; }
+
 /* ── THE GHOST — highest single-player week ──────────────────────────────── */
 function buildTopScore(panel, g){
   const REG_WEEKS = Math.max(...(g.activeWeeks.length ? g.activeWeeks : [14]));
@@ -1717,28 +1670,38 @@ function buildTopScore(panel, g){
   if(!top){ panel.appendChild(emptyCard(g, '👻')); return; }
 
   // Record banner
-  if(top.best.pts > TYREEK_RECORD){
+  // Order matters: with no record on file every score "beats" it, so check
+  // for the missing-record case before the broken-record case.
+  if(!TOPGUN_RECORD || !topGunHolder()){
+    const safe = document.createElement('div');
+    safe.className = 'record-safe';
+    safe.innerHTML = `<div class="icon">🎯</div><div class="label">No record on the books yet</div>
+      <div class="sub">Best so far: <strong style="color:var(--text);">${top.best.pts.toFixed(1)}</strong>
+      (${esc(pName(top.best.pid))}, W${top.best.w}). Whoever finishes on top sets the all-time mark.</div>`;
+    panel.appendChild(safe);
+  } else if(top.best.pts > TOPGUN_RECORD){
     const hero = document.createElement('div');
-    hero.className = 'tyreek-hero';
-    hero.innerHTML = `<div class="tyreek-icon">👑</div><div class="tyreek-txt">
+    hero.className = 'record-hero';
+    hero.innerHTML = `<div class="record-icon">👑</div><div class="record-txt">
       <h3>Record broken!</h3>
       <p>${esc(pName(top.best.pid))} — ${top.best.pts.toFixed(1)} pts in Week ${top.best.w} for ${esc(tName(top.r))}.
-      The old mark was ${TYREEK_RECORD}, set by ${esc(LEAGUE_CONFIG.tyreekHolder)} in ${LEAGUE_CONFIG.tyreekYear}.</p></div>`;
+      The old mark was ${TOPGUN_RECORD}, set by ${esc(topGunHolder())} in ${topGunYear()}.</p></div>`;
     panel.appendChild(hero);
   } else {
     const safe = document.createElement('div');
-    safe.className = 'tyreek-safe';
-    safe.innerHTML = `<div class="icon">👻</div><div class="label">${TYREEK_RECORD} still stands</div>
-      <div class="sub">${esc(LEAGUE_CONFIG.tyreekHolder)}, Week ${LEAGUE_CONFIG.tyreekWeek}, ${LEAGUE_CONFIG.tyreekYear} ·
+    safe.className = 'record-safe';
+    safe.innerHTML = `<div class="icon">👻</div><div class="label">${TOPGUN_RECORD} still stands</div>
+      <div class="sub">${esc(topGunHolder())}, Week ${topGunWeek()}, ${topGunYear()} ·
       Closest so far: <strong style="color:var(--text);">${top.best.pts.toFixed(1)}</strong>
-      (${esc(pName(top.best.pid))}, W${top.best.w}) — ${(TYREEK_RECORD - top.best.pts).toFixed(1)} short</div>`;
+      (${esc(pName(top.best.pid))}, W${top.best.w}) — ${(TOPGUN_RECORD - top.best.pts).toFixed(1)} short</div>`;
     panel.appendChild(safe);
   }
 
   const card = document.createElement('div');
   card.className = 'card';
   card.innerHTML = gameCardHead(g, null, 'Best single starter week · W1–W' + REG_WEEKS);
-  const t = mkTable(['', 'Team', 'Player', 'Week', '>Score', '>vs Record']);
+  const hasRecord = TOPGUN_RECORD > 0;
+  const t = mkTable(['', 'Team', 'Player', 'Week', '>Score'].concat(hasRecord ? ['>vs Record'] : []));
   rows.forEach(({ r, best: b }, i) => {
     const lead = i === 0 && b;
     const tr = document.createElement('tr');
@@ -1746,16 +1709,16 @@ function buildTopScore(panel, g){
     if(!b){
       tr.innerHTML = `<td class="rank-num">—</td>${teamCell(r)}
         <td class="tdc" style="color:var(--text3);">—</td><td class="mv">—</td>
-        <td class="mv r">—</td><td class="mv r">—</td>`;
+        <td class="mv r">—</td>` + (hasRecord ? '<td class="mv r">—</td>' : '');
     } else {
-      const diff = b.pts - TYREEK_RECORD;
+      const diff = b.pts - TOPGUN_RECORD;
       tr.innerHTML = `
         <td class="rank-num">${i+1}</td>
         ${teamCell(r)}
         <td class="tdc" style="font-weight:600;">${esc(pName(b.pid))}</td>
         <td class="mv">W${b.w}</td>
-        <td class="mv r bold" style="color:var(--g);">${lead ? '<span class="badge badge-green">👑</span> ' : ''}${b.pts.toFixed(1)}</td>
-        <td class="mv r" style="color:${diff > 0 ? 'var(--c1)' : 'var(--text3)'};">${diff > 0 ? '+' + diff.toFixed(1) : diff.toFixed(1)}</td>`;
+        <td class="mv r bold" style="color:var(--g);">${lead ? '<span class="badge badge-green">👑</span> ' : ''}${b.pts.toFixed(1)}</td>`
+        + (hasRecord ? `<td class="mv r" style="color:${diff > 0 ? 'var(--c1)' : 'var(--text3)'};">${diff > 0 ? '+' + diff.toFixed(1) : diff.toFixed(1)}</td>` : '');
     }
     t.querySelector('tbody').appendChild(tr);
   });
@@ -1776,8 +1739,10 @@ function buildComingSoon(panel, g){
     <div class="teaser-body">
       <div class="teaser-mark">🦃</div>
       <p class="teaser-line">${esc(g.desc)}</p>
-      ${facts.length ? `<dl class="teaser-facts">${facts.map(f => `
-        <div><dt>${esc(f.label)}</dt><dd>${esc(f.value)}</dd></div>`).join('')}</dl>` : ''}
+      <dl class="teaser-facts">
+        <div><dt>Prize</dt><dd>${g.payoutLabel}</dd></div>
+        ${facts.map(f => `<div><dt>${esc(f.label)}</dt><dd>${esc(f.value)}</dd></div>`).join('')}
+      </dl>
     </div>`;
   panel.appendChild(card);
 }
@@ -2859,7 +2824,6 @@ function downloadReportImage(){
 /* ═══ INIT ══════════════════════════════════════════════════════════════════ */
 
 function buildAll(){
-  buildTrailer();
   buildGames();
   buildMyStrip();
   buildCountdowns();
@@ -2883,7 +2847,6 @@ function startApp(){
   syncHeaderOffset();
   buildLeagueSwitcher();
   buildNav();
-  buildTrailer();
   buildCalendar();
   buildGames();
   buildCountdowns();
