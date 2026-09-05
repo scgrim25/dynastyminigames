@@ -2286,6 +2286,17 @@ function submittableGames(){
   return GAMES.filter(g => g.submission && g.submission.sheet && g.submission.field);
 }
 
+function submissionOpens(g){
+  const t = g.submission && g.submission.opensAt;
+  if(!t) return null;
+  const d = new Date(t).getTime();
+  return isNaN(d) ? null : d;
+}
+function notYetOpen(g){
+  const o = submissionOpens(g);
+  return o !== null && Date.now() < o;
+}
+
 function submissionDeadline(g){
   const id = g.submission.deadlineId || g.id;
   const d = (DEADLINES || []).find(x => x.id === id || x.gameId === g.id);
@@ -2322,8 +2333,13 @@ function submissionOptions(g){
   if(!mr) return [];
   const src = g.submission.source;
   let ids = [];
-  if(src === 'acquisitions') ids = heistElig(mr.roster_id);
-  else ids = (mr.players || []);
+  if(src === 'acquisitions'){
+    // Added in W1-4 *and* still owned — the rules require both.
+    const owned = new Set(mr.players || []);
+    ids = heistElig(mr.roster_id).filter(pid => owned.has(pid));
+  } else {
+    ids = (mr.players || []);
+  }
   return ids
     .map(pid => ({ pid, name: pName(pid) }))
     .filter(p => p.name && p.name !== p.pid)
@@ -2352,7 +2368,10 @@ function buildSubmit(argId){
   const now = Date.now();
   const chosen = argId && list.some(g => g.id === argId) ? argId
     : (window._submitPick && list.some(g => g.id === window._submitPick) ? window._submitPick
-      : (list.find(g => { const d = submissionDeadline(g); return d === null || d > now; }) || list[0]).id);
+      : (list.find(g => {
+            const d = submissionDeadline(g);
+            return !notYetOpen(g) && (d === null || d > now);
+          }) || list[0]).id);
   window._submitPick = chosen;
 
   el.innerHTML = `
@@ -2365,11 +2384,12 @@ function buildSubmit(argId){
       ${list.map(g => {
         const dl = submissionDeadline(g);
         const closed = dl !== null && dl <= now;
+        const soon = notYetOpen(g);
         const done = existingSubmission(g);
         return `<button class="submit-choice ${g.cls}${g.id === chosen ? ' on' : ''}"
                   role="tab" aria-selected="${g.id === chosen}" onclick="pickSubmission('${esc(g.id)}')">
           <span class="submit-choice-name">${esc(g.name)}</span>
-          <span class="submit-choice-state">${closed ? 'Closed' : done ? '✓ Submitted' : 'Open'}</span>
+          <span class="submit-choice-state">${closed ? 'Closed' : soon ? 'Opens later' : done ? '✓ Submitted' : 'Open'}</span>
         </button>`;
       }).join('')}
     </div>
@@ -2397,8 +2417,17 @@ function buildSubmitPanel(g){
   const when = dl ? new Date(dl).toLocaleString('en-US',
     { weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : null;
 
+  const opensAt = submissionOpens(g);
+  const soon = notYetOpen(g);
+
   let body;
-  if(closed){
+  if(soon){
+    const when = new Date(opensAt).toLocaleString('en-US',
+      { weekday:'long', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+    body = `<div class="card-empty"><div class="icon">📅</div>
+      Opens ${esc(when)}.<br>${esc(g.submission.openNote
+        || 'Eligibility isn\'t settled until this window opens.')}</div>`;
+  } else if(closed){
     body = `<div class="card-empty"><div class="icon">🔒</div>
       This closed ${esc(when)}.${current ? `<br>You submitted <strong>${esc(current)}</strong>${
         submissionStamp(g) ? ` on ${esc(submissionStamp(g))}` : ''}.` : '<br>You didn\'t submit anything.'}</div>`;
@@ -2450,6 +2479,9 @@ async function sendSubmission(gameId){
   const value = sel.value.trim();
   if(!value){ msg.textContent = 'Pick a player first.'; msg.className = 'submit-msg bad'; return; }
 
+  if(notYetOpen(g)){
+    msg.textContent = 'This one hasn\'t opened yet.'; msg.className = 'submit-msg bad'; return;
+  }
   const dl = submissionDeadline(g);
   if(dl !== null && dl <= Date.now()){
     msg.textContent = 'This one has closed.'; msg.className = 'submit-msg bad'; return;
