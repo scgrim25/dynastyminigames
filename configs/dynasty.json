@@ -2,13 +2,6 @@
   "slug": "dynasty",
   "leagueName": "The Dynasty",
   "season": "2026",
-  "trailer": {
-    "src": "https://www.youtube-nocookie.com/embed/quH_nad5TEA",
-    "poster": "https://i.ytimg.com/vi/quH_nad5TEA/maxresdefault.jpg",
-    "caption": "Seven games. One season. $120 on the line.",
-    "title": "The Dynasty MiniGames 2026",
-    "miniLabel": "Watch the trailer"
-  },
   "storeKey": "minigames_dynasty_2026",
   "sheetsApi": "https://script.google.com/macros/s/AKfycbyxXrTdgQl1ARr50oMcoUZX-eik4GLNJgCgBm1abNuO-8LxGLk7rLW2jibmnlI_okU/exec",
   "liveId": "1312199586051276800",
@@ -59,16 +52,12 @@
     "turducken": "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIvFPgIOpZvkbWFtfuWMGjUxiMQg1pU4fLAwLwHIb5U1mDvsgpnlOrjpgMDyv110iZXJzTcLDRQfYM/pub?gid=519486444&single=true&output=csv"
   },
   "week1Date": "2026-09-09",
-  "tyreekRecord": 64.9,
-  "tyreekHolder": "Tyreek Hill",
-  "tyreekWeek": 12,
-  "tyreekYear": 2020,
   "deadlines": [
     {
       "id": "longgame",
-      "label": "Long Game Nominations (preseason)",
+      "label": "Long Game Nominations",
       "gameId": "longgame",
-      "date": "2026-09-06T12:00:00-04:00"
+      "date": "2026-09-09T19:00:00-04:00"
     },
     {
       "id": "sleeper",
@@ -93,9 +82,9 @@
       "name": "The Long Game",
       "builder": "longgame",
       "color": "green",
-      "payout": 25,
+      "payout": 20,
       "typeLabel": "Season Long",
-      "weeks": "Preseason nomination → Jan 3 · Incl. playoffs",
+      "weeks": "Nominate by kickoff → Jan 3 · Incl. playoffs",
       "activeWeeks": [
         1,
         2,
@@ -116,11 +105,11 @@
         17
       ],
       "blurb": "Nominate one player before kickoff. Biggest KTC gain by championship day wins.",
-      "desc": "Dynasty isn't won in a week. Nominate one player before the season kicks off — whoever's pick climbs the most in KTC Superflex value between then and championship day wins. Draft-day conviction, graded in January.",
-      "highlight": "Nominations close Sunday September 6, 2026 at noon ET — three days before kickoff. Starting KTC Superflex value is locked at that moment. Biggest gain by January 3, 2027 wins.",
+      "desc": "Dynasty isn't won in a week. Nominate one player before the first game of the season kicks off — whoever's pick climbs the most in KTC Superflex value between then and championship day wins. Opening-night conviction, graded in January.",
+      "highlight": "Nominations close Wednesday September 9, 2026 at 7:00pm ET — just before the opener. Starting KTC Superflex value is locked at that moment. Biggest gain by January 3, 2027 wins.",
       "emptyHint": "Commissioner adds player nominations and weekly KTC Superflex values to the Google Sheet.",
       "rules": [
-        "Nominations close Sunday September 6, 2026 at 12pm ET — before the season opens",
+        "Nominations close Wednesday September 9, 2026 at 7:00pm ET — before the first kickoff",
         "Any player on your roster at that moment is eligible",
         "Player must remain on your roster through W17 (fantasy playoffs)",
         "Commissioner records KTC SF value each week and enters into the sheet",
@@ -287,7 +276,7 @@
       "name": "Turducken Bowl",
       "builder": "comingsoon",
       "color": "orange",
-      "payout": 10,
+      "payout": 30,
       "typeLabel": "Single Week · W12",
       "weeks": "Wed Nov 25 – Fri Nov 27",
       "activeWeeks": [
@@ -298,10 +287,6 @@
       "desc": "Five games across Wednesday, Thursday and Friday of Thanksgiving week — the first three-day slate in NFL history. You'll build one lineup from it. Anybody's players, not just the ones on your roster. Full rules drop closer to the date.",
       "teaser": "Rules still cooking.",
       "teaserFacts": [
-        {
-          "label": "Prize",
-          "value": "$10"
-        },
         {
           "label": "Slate",
           "value": "5 games · 10 teams"
@@ -322,45 +307,6 @@
         "Any player is eligible — he does not have to be on your fantasy roster",
         "Everything locks before Wednesday kickoff",
         "Scoring, roster construction and tiebreakers announced closer to the date"
-      ]
-    },
-    {
-      "id": "topgun",
-      "name": "Top Gun",
-      "builder": "topscore",
-      "color": "teal",
-      "payout": 15,
-      "typeLabel": "Season Long",
-      "weeks": "W1–W14 · Regular Season",
-      "activeWeeks": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14
-      ],
-      "decidedWeek": 14,
-      "blurb": "Highest single-player week of the season. Somebody wins this every year.",
-      "desc": "One guy, one week, the biggest number anybody puts up all season. Highest score by any single starter in any regular-season week takes it. Tyreek Hill's 64.9 from 2020 is still the league record — clear it and you take the record along with the money.",
-      "highlight": "Player must be in your starting lineup — bench doesn't count. Beat 64.9 and your name goes in the record book.",
-      "emptyHint": "Fills in automatically from Sleeper once Week 1 scores post.",
-      "rules": [
-        "Highest single-player score in any one week, W1–W14, wins",
-        "Player must be in your starting lineup — bench scores don't count",
-        "Any position is eligible",
-        "Regular season only — playoff weeks don't count",
-        "Your best week is what counts; only your top performance is ranked",
-        "Beat the all-time league record (64.9) and it goes in the record book under your name",
-        "Tiebreaker: whoever hit the score in the earlier week"
       ]
     }
   ]
