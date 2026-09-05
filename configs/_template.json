@@ -2,22 +2,26 @@
   "_readme": [
     "Copy this file to configs/<your-slug>.json, fill it in, then add one line to configs/index.json.",
     "That's the whole process for adding a league — no code changes.",
-    "  sheetsApi is the Apps Script web app /exec url — one url instead of five CSVs.",
-    "  Leave the 'sheets' CSV urls in as a fallback, or delete them once the API works.",
-    "  trailer is optional — delete the whole block and nothing renders.",
-    "  Add a 'submission' block to a game and it appears on the Submit page.",
-    "    source: 'roster' (anyone you own) or 'acquisitions' (added in W1-4)",
+    "",
+    "sheetsApi is the Apps Script web app /exec url. Deploy Code.gs from that league's",
+    "spreadsheet as a web app (Execute as: Me, Access: Anyone) and paste the url here.",
     "",
     "GAMES: every game needs id, name, color, payout, activeWeeks, decidedWeek.",
     "  'builder' wires the game to a standings table. Available builders:",
     "    longgame · tactician · sleeper · cardiac · comeback · topscore · comingsoon",
-    "  Omit 'builder' for a game you score by hand — the page renders with rules only.",
-    "  'color' is one of: green gold red blue purple orange teal",
-    "  'payout' is a number (dollars). Totals are summed for you on the overview.",
-    "  'activeWeeks' drives the calendar row. Include playoff weeks if the game runs that long.",
+    "  Omit 'builder' for a game you score by hand.",
     "  'comingsoon' renders a teaser card instead of standings — use it for a game",
     "  you've announced but not finished designing. Reads 'teaser' and 'teaserFacts'.",
-    "  'decidedWeek' is the week the winner is named — it gets a crown on the calendar."
+    "  'topscore' ranks each team's best single-player week; it needs topGunRecord,",
+    "  topGunHolder, topGunWeek and topGunYear at the top level, or 0/blank for none.",
+    "  'color' is one of: green gold red blue purple orange teal",
+    "  'activeWeeks' drives the calendar row. 'decidedWeek' gets a crown.",
+    "",
+    "  Add a 'submission' block to a game and it appears on the Submit page:",
+    "    source     'roster' (anyone you own) or 'acquisitions' (added in W1-4, still owned)",
+    "    sheet/field which tab and column the answer is written to",
+    "    opensAt    optional — the panel stays locked until then",
+    "    linkUrl    optional — a reference link shown beside the picker"
   ],
   "slug": "your-league-slug",
   "leagueName": "Your League Name",
@@ -40,10 +44,6 @@
     "meta": "CSV_PUBLISH_URL_FOR_META_TAB"
   },
   "week1Date": "2026-09-09",
-  "topGunRecord": 64.9,
-  "topGunHolder": "Tyreek Hill",
-  "topGunWeek": 12,
-  "topGunYear": 2020,
   "deadlines": [
     {
       "id": "longgame",
@@ -89,7 +89,15 @@
         "First rule",
         "Second rule"
       ],
-      "decidedWeek": 17
+      "decidedWeek": 17,
+      "submission": {
+        "label": "Nominate your player",
+        "help": "Shown above the picker.",
+        "source": "roster",
+        "sheet": "long_game",
+        "field": "player_name",
+        "deadlineId": "longgame"
+      }
     }
   ]
 }
