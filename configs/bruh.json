@@ -1,56 +1,37 @@
 {
-  "slug": "dynasty",
-  "leagueName": "The Dynasty",
+  "_setup": [
+    "Optional: set topGunRecord to Dynasty Bruh's all-time single-week high.",
+    "At 0, Top Gun treats any score as a record. Delete this block whenever."
+  ],
+  "slug": "bruh",
+  "leagueName": "Dynasty Bruh",
   "season": "2026",
-  "storeKey": "minigames_dynasty_2026",
-  "sheetsApi": "https://script.google.com/macros/s/AKfycbyxXrTdgQl1ARr50oMcoUZX-eik4GLNJgCgBm1abNuO-8LxGLk7rLW2jibmnlI_okU/exec",
-  "liveId": "1312199586051276800",
-  "testId": "1200247106455994368",
+  "storeKey": "minigames_bruh_2026",
+  "sheetsApi": "https://script.google.com/macros/s/AKfycbznr3E47Dm4mbIyyjGTa7uWR3gt3T58-khnUU1-WFN-cQxU9FK6TIXBeHPU45lzgapJnQ/exec",
+  "liveId": "1312203243723448320",
+  "testId": "1312203243723448320",
   "seasons": [
     {
       "year": 2026,
-      "id": "1312199586051276800"
+      "id": "1312203243723448320"
     },
     {
       "year": 2025,
-      "id": "1200247106455994368"
+      "id": "1200245752664690688"
     },
     {
       "year": 2024,
-      "id": "1048433186532954112"
+      "id": "1050788505678483456"
     },
     {
       "year": 2023,
-      "id": "920001158452727808"
+      "id": "957432263203991552"
     },
     {
       "year": 2022,
-      "id": "784360556902658048"
-    },
-    {
-      "year": 2021,
-      "id": "677989799411404800"
-    },
-    {
-      "year": 2020,
-      "id": "518821990182191104"
-    },
-    {
-      "year": 2019,
-      "id": "411583879569227776"
-    },
-    {
-      "year": 2018,
-      "id": "302492854469550080"
+      "id": "839493220277825536"
     }
   ],
-  "sheets": {
-    "tactician": "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIvFPgIOpZvkbWFtfuWMGjUxiMQg1pU4fLAwLwHIb5U1mDvsgpnlOrjpgMDyv110iZXJzTcLDRQfYM/pub?gid=0&single=true&output=csv",
-    "long_game": "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIvFPgIOpZvkbWFtfuWMGjUxiMQg1pU4fLAwLwHIb5U1mDvsgpnlOrjpgMDyv110iZXJzTcLDRQfYM/pub?gid=744290142&single=true&output=csv",
-    "sleeper_picks": "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIvFPgIOpZvkbWFtfuWMGjUxiMQg1pU4fLAwLwHIb5U1mDvsgpnlOrjpgMDyv110iZXJzTcLDRQfYM/pub?gid=404162777&single=true&output=csv",
-    "meta": "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIvFPgIOpZvkbWFtfuWMGjUxiMQg1pU4fLAwLwHIb5U1mDvsgpnlOrjpgMDyv110iZXJzTcLDRQfYM/pub?gid=897554780&single=true&output=csv",
-    "turducken": "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIvFPgIOpZvkbWFtfuWMGjUxiMQg1pU4fLAwLwHIb5U1mDvsgpnlOrjpgMDyv110iZXJzTcLDRQfYM/pub?gid=519486444&single=true&output=csv"
-  },
   "week1Date": "2026-09-09",
   "deadlines": [
     {
@@ -72,10 +53,7 @@
       "date": "2026-11-25T20:00:00-05:00"
     }
   ],
-  "nameAliases": {
-    "PapaLaw": "QLawson",
-    "papalaw": "QLawson"
-  },
+  "nameAliases": {},
   "games": [
     {
       "id": "longgame",
