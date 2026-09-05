@@ -294,6 +294,22 @@ body.is-landing{padding-bottom:0;}
   margin-bottom:14px;aspect-ratio:16/9;
 }
 .landing-video video,.landing-video iframe{width:100%;height:100%;display:block;border:none;}
+.trailer-poster{
+  display:block;width:100%;height:100%;border:none;padding:0;cursor:pointer;
+  background:#12100d;position:relative;
+}
+.trailer-poster img{width:100%;height:100%;object-fit:cover;display:block;}
+.trailer-fallback{
+  display:block;width:100%;height:100%;
+  background:linear-gradient(135deg,#1b4332,#2d6a4f);
+}
+.trailer-play{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.92);
+  color:var(--accent2);font-size:22px;line-height:64px;text-align:center;
+  padding-left:5px;box-shadow:0 4px 20px rgba(0,0,0,.3);transition:transform .18s;
+}
+.trailer-poster:hover .trailer-play{transform:translate(-50%,-50%) scale(1.07);}
 .landing-skip{
   background:none;border:none;cursor:pointer;font-family:var(--mono);
   font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);
@@ -320,53 +336,6 @@ body.is-landing{padding-bottom:0;}
   margin-top:44px;font-family:var(--mono);font-size:11px;color:var(--text3);
 }
 .header-title{cursor:pointer;}
-
-/* ── TRAILER ────────────────────────────────────────────────────────────── */
-.trailer{
-  position:relative;background:#12100d;border:1px solid var(--border);
-  border-radius:var(--r);overflow:hidden;margin-bottom:20px;box-shadow:var(--shadow);
-}
-.trailer-poster{
-  display:block;width:100%;border:none;padding:0;cursor:pointer;background:#12100d;
-  position:relative;aspect-ratio:16/9;
-}
-.trailer-poster img{width:100%;height:100%;object-fit:cover;display:block;}
-.trailer-fallback{
-  display:block;width:100%;height:100%;
-  background:linear-gradient(135deg,#1b4332,#2d6a4f);
-}
-.trailer-play{
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.92);
-  color:var(--accent2);font-size:22px;line-height:64px;text-align:center;
-  padding-left:5px;box-shadow:0 4px 20px rgba(0,0,0,.3);transition:transform .18s;
-}
-.trailer-poster:hover .trailer-play{transform:translate(-50%,-50%) scale(1.07);}
-.trailer-caption{
-  position:absolute;left:0;right:0;bottom:0;padding:26px 20px 14px;text-align:left;
-  font-family:var(--display);font-size:17px;font-weight:700;color:#fff;
-  background:linear-gradient(transparent,rgba(0,0,0,.75));
-}
-.trailer.playing{aspect-ratio:16/9;}
-.trailer video,.trailer iframe{width:100%;height:100%;display:block;border:none;background:#12100d;}
-.trailer-skip{
-  position:absolute;top:10px;right:10px;z-index:2;
-  font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
-  background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.3);
-  border-radius:6px;padding:5px 11px;cursor:pointer;
-}
-.trailer-skip:hover{background:rgba(0,0,0,.8);}
-.trailer-mini{
-  display:inline-flex;align-items:center;gap:9px;margin-bottom:16px;
-  background:var(--surface);border:1px solid var(--border);border-radius:100px;
-  padding:7px 16px 7px 12px;cursor:pointer;font-family:var(--sans);
-  font-size:13px;font-weight:600;color:var(--text2);transition:border-color .15s,color .15s;
-}
-.trailer-mini:hover{border-color:var(--accent);color:var(--accent);}
-.trailer-mini-icon{
-  width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;
-  font-size:9px;line-height:20px;text-align:center;padding-left:2px;flex-shrink:0;
-}
 
 /* ── MY STRIP ───────────────────────────────────────────────────────────── */
 .my-strip{
@@ -643,21 +612,21 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(45
 }
 .teaser-facts dd{font-size:13px;font-weight:600;color:var(--text);}
 
-/* ── TYREEK ─────────────────────────────────────────────────────────────── */
-.tyreek-hero{
+/* ── TOP GUN RECORD BANNER ─────────────────────────────────────────────────────────────── */
+.record-hero{
   background:linear-gradient(135deg,#064e3b,#065f46);color:#fff;border-radius:var(--r);
   padding:26px;margin-bottom:16px;display:flex;align-items:center;gap:20px;
 }
-.tyreek-icon{font-size:48px;flex-shrink:0;}
-.tyreek-txt h3{font-family:var(--display);font-size:22px;font-weight:700;margin-bottom:4px;}
-.tyreek-txt p{font-size:13px;opacity:.88;line-height:1.5;}
-.tyreek-safe{
+.record-icon{font-size:48px;flex-shrink:0;}
+.record-txt h3{font-family:var(--display);font-size:22px;font-weight:700;margin-bottom:4px;}
+.record-txt p{font-size:13px;opacity:.88;line-height:1.5;}
+.record-safe{
   background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
   padding:26px;margin-bottom:16px;text-align:center;
 }
-.tyreek-safe .icon{font-size:42px;margin-bottom:10px;}
-.tyreek-safe .label{font-family:var(--display);font-size:17px;font-weight:700;margin-bottom:4px;}
-.tyreek-safe .sub{font-size:13px;color:var(--text3);}
+.record-safe .icon{font-size:42px;margin-bottom:10px;}
+.record-safe .label{font-family:var(--display);font-size:17px;font-weight:700;margin-bottom:4px;}
+.record-safe .sub{font-size:13px;color:var(--text3);}
 
 /* ── HISTORY ────────────────────────────────────────────────────────────── */
 .hist-toolbar{display:flex;gap:10px;margin-bottom:18px;align-items:center;flex-wrap:wrap;}
@@ -872,10 +841,8 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(45
   .my-strip{padding:12px 14px;}
   .landing{padding:36px 16px 56px;}
   .landing-tagline{font-size:15px;margin-bottom:26px;}
-  .league-grid{grid-template-columns:1fr;}
-  .trailer{border-radius:10px;margin-bottom:16px;}
   .trailer-play{width:52px;height:52px;line-height:52px;font-size:18px;}
-  .trailer-caption{font-size:15px;padding:22px 14px 12px;}
+  .league-grid{grid-template-columns:1fr;}
 
   /* Game pages */
   .gp-head-top{padding:14px 16px 12px;gap:10px;}
@@ -922,9 +889,9 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(45
   .stand-row{grid-template-columns:28px 1fr auto;padding:12px 14px;gap:10px;}
   .stand-name{font-size:15px;}
   .stand-pct{font-size:19px;}
-  .tyreek-hero{flex-direction:column;text-align:center;gap:12px;padding:20px 16px;}
-  .tyreek-icon{font-size:36px;}
-  .tyreek-txt h3{font-size:18px;}
+  .record-hero{flex-direction:column;text-align:center;gap:12px;padding:20px 16px;}
+  .record-icon{font-size:36px;}
+  .record-txt h3{font-size:18px;}
   .teaser-body{padding:24px 16px;}
   .teaser-facts{grid-template-columns:1fr;}
 
