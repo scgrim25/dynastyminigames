@@ -2302,6 +2302,20 @@ function existingSubmission(g){
   return v ? String(v) : null;
 }
 
+/* When the pick was locked in — the commissioner reads the starting value off
+   the KTC chart for that date, so the timestamp is part of the record. */
+function submissionStamp(g){
+  const mr = myRoster();
+  if(!mr) return null;
+  const rows = sheets[g.submission.sheet] || [];
+  const row = rows.find(r => String(r.roster_id) === String(mr.roster_id));
+  const t = row && (row.submitted_at || row.timestamp);
+  if(!t) return null;
+  const d = new Date(t);
+  return isNaN(d.getTime()) ? String(t) : d.toLocaleString('en-US',
+    { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+}
+
 /* Candidate players for the picker. */
 function submissionOptions(g){
   const mr = myRoster();
@@ -2386,7 +2400,8 @@ function buildSubmitPanel(g){
   let body;
   if(closed){
     body = `<div class="card-empty"><div class="icon">🔒</div>
-      This closed ${esc(when)}.${current ? `<br>You submitted <strong>${esc(current)}</strong>.` : '<br>You didn\'t submit anything.'}</div>`;
+      This closed ${esc(when)}.${current ? `<br>You submitted <strong>${esc(current)}</strong>${
+        submissionStamp(g) ? ` on ${esc(submissionStamp(g))}` : ''}.` : '<br>You didn\'t submit anything.'}</div>`;
   } else if(!namesReady){
     body = `<div class="card-empty"><div class="icon">⏳</div>Loading player names…</div>`;
   } else if(!opts.length){
@@ -2396,7 +2411,13 @@ function buildSubmitPanel(g){
   } else {
     body = `<div class="submit-form">
       <p class="submit-help">${esc(sub.help || '')}</p>
-      ${current ? `<div class="info info-green">Currently submitted: <strong>${esc(current)}</strong>.
+      ${sub.linkUrl ? `<div class="submit-link">
+        <a class="btn btn-ghost" href="${esc(sub.linkUrl)}" target="_blank" rel="noopener noreferrer">
+          ${esc(sub.linkLabel || 'Open rankings')} ↗</a>
+        ${sub.linkNote ? `<span class="submit-link-note">${esc(sub.linkNote)}</span>` : ''}
+      </div>` : ''}
+      ${current ? `<div class="info info-green">Currently submitted: <strong>${esc(current)}</strong>${
+        submissionStamp(g) ? ` · locked in ${esc(submissionStamp(g))}` : ''}.
         Choosing again replaces it.</div>` : ''}
       <label class="field-label" for="submitValue">${esc(sub.label || 'Your pick')}</label>
       <select id="submitValue">
@@ -2479,6 +2500,7 @@ async function sendSubmission(gameId){
     let row = rows.find(x => String(x.roster_id) === String(mr.roster_id));
     if(!row){ row = { roster_id: String(mr.roster_id) }; rows.push(row); }
     row[g.submission.field] = value;
+    row.submitted_at = out.submitted_at || new Date().toISOString();
     setTimeout(() => { buildSubmit(gameId); buildAll(); }, 900);
   } catch(e){
     console.error('submission failed:', e);
