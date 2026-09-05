@@ -5,6 +5,8 @@
     "  sheetsApi is the Apps Script web app /exec url — one url instead of five CSVs.",
     "  Leave the 'sheets' CSV urls in as a fallback, or delete them once the API works.",
     "  trailer is optional — delete the whole block and nothing renders.",
+    "  Add a 'submission' block to a game and it appears on the Submit page.",
+    "    source: 'roster' (anyone you own) or 'acquisitions' (added in W1-4)",
     "",
     "GAMES: every game needs id, name, color, payout, activeWeeks, decidedWeek.",
     "  'builder' wires the game to a standings table. Available builders:",
@@ -20,13 +22,6 @@
   "slug": "your-league-slug",
   "leagueName": "Your League Name",
   "season": "2026",
-  "trailer": {
-    "src": "media/your-trailer.mp4  (or a YouTube/Vimeo embed url)",
-    "poster": "media/your-trailer.jpg",
-    "caption": "One line over the poster. Optional.",
-    "title": "League trailer",
-    "miniLabel": "Watch the trailer"
-  },
   "storeKey": "minigames_yourleague_2026",
   "sheetsApi": "PASTE_APPS_SCRIPT_WEB_APP_EXEC_URL",
   "liveId": "YOUR_SLEEPER_LEAGUE_ID",
@@ -45,11 +40,10 @@
     "meta": "CSV_PUBLISH_URL_FOR_META_TAB"
   },
   "week1Date": "2026-09-09",
-  "tyreekRecord": 64.9,
-  "tyreekHolder": "Tyreek Hill",
-  "tyreekWeek": 12,
-  "tyreekYear": 2020,
-  "tyreekBasePayout": 15,
+  "topGunRecord": 64.9,
+  "topGunHolder": "Tyreek Hill",
+  "topGunWeek": 12,
+  "topGunYear": 2020,
   "deadlines": [
     {
       "id": "longgame",
