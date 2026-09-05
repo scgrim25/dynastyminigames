@@ -63,7 +63,7 @@
       "id": "sleeper",
       "label": "Sleeper Declarations",
       "gameId": "sleeper",
-      "date": "2026-10-08T20:15:00-04:00"
+      "date": "2026-10-08T20:00:00-04:00"
     },
     {
       "id": "turducken",
@@ -191,7 +191,7 @@
       "highlight": "Baseline is his real Weeks 1 to 4 average, whoever owned him. Performance is Weeks 5 to 14 with the worst week dropped.",
       "emptyHint": "Declare your pick before Week 5 locks — the table fills in as the season runs.",
       "rules": [
-        "Pick up a player in Weeks 1 to 4 and declare him before Week 5 locks",
+        "Pick up a player in Weeks 1 to 4, then declare him between the Tuesday after Week 4 and Thursday kickoff",
         "He must have played at least two of those four weeks, and be on your roster when you declare",
         "His baseline is his average score over the games he played in Weeks 1 to 4, no matter who owned him",
         "Weeks he was inactive or on bye are left out of that average, not counted as zero",
@@ -202,11 +202,13 @@
       "decidedWeek": 14,
       "submission": {
         "label": "Declare your Sleeper pick",
-        "help": "Only players you added in Weeks 1–4 by waiver, free agency, or trade. He must have played at least two of those weeks.",
+        "help": "Only players you added in Weeks 1 to 4 who are still on your roster. The window opens once Week 4 is final and closes before Thursday kickoff.",
         "source": "acquisitions",
         "sheet": "sleeper_picks",
         "field": "player_name",
-        "deadlineId": "sleeper"
+        "deadlineId": "sleeper",
+        "opensAt": "2026-10-06T12:00:00-04:00",
+        "openNote": "Week 4 has to finish before we know who's eligible — only players you added in Weeks 1 to 4 and still own can be declared."
       }
     },
     {
