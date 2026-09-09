@@ -57,7 +57,7 @@
       "id": "longgame",
       "label": "Long Game Nominations",
       "gameId": "longgame",
-      "date": "2026-09-09T19:00:00-04:00"
+      "date": "2026-09-09T20:20:00-04:00"
     },
     {
       "id": "sleeper",
@@ -106,10 +106,10 @@
       ],
       "blurb": "Nominate one player before kickoff. Biggest KTC gain by championship day wins.",
       "desc": "Dynasty isn't won in a week. Nominate one player before the first game of the season kicks off — whoever's pick climbs the most in KTC Superflex value between then and championship day wins. Opening-night conviction, graded in January.",
-      "highlight": "Nominations close before the first kickoff. Your starting value is whatever KTC says on the day you submit.",
+      "highlight": "Nominations close Wednesday September 9, 2026 at 8:20pm ET, at kickoff. Your starting KTC value is read off the chart for that day. Biggest gain by January 3, 2027 wins.",
       "emptyHint": "Commissioner adds player nominations and weekly KTC Superflex values to the Google Sheet.",
       "rules": [
-        "Nominate one player from your roster before the deadline",
+        "Nominations close Wednesday September 9, 2026 at 8:20pm ET, when the season kicks off",
         "Values come from KeepTradeCut's dynasty rankings, with the Superflex toggle set to match your league",
         "Your starting value is his value on the day you submit — the site records the time",
         "He has to stay on your roster through Week 17",
