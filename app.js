@@ -1302,8 +1302,7 @@ function buildSleeperGame(panel, g){
     const rid = roster.roster_id;
     const elig = heistElig(rid);
     const sheetPick = sheetPicks.find(row => row.roster_id === String(rid));
-    const savedPick = ((saved.sleeper || {})[rid]) || {};
-    const pickedPid = sheetPick ? (elig.find(pid => pName(pid) === sheetPick.player_name) || '') : (savedPick.pick || '');
+    const pickedPid = sheetPick ? (elig.find(pid => pName(pid) === sheetPick.player_name) || '') : '';
 
     // Baseline: the sheet wins if the commissioner entered one, because league
     // matchup data only covers weeks the player was rostered by somebody — the
@@ -1342,12 +1341,10 @@ function buildSleeperGame(panel, g){
       arr.push({ rid, val: (delta > 0 ? '+' : '') + delta.toFixed(1), _d: delta });
     }
 
-    const pickDisplay = sheetPick
+    // Read-only — declarations are made on the Submit page and land in the sheet.
+    const pickDisplay = sheetPick && sheetPick.player_name
       ? `<span style="font-weight:600;color:var(--g);">${esc(sheetPick.player_name)}</span>`
-      : `<select style="width:160px;" aria-label="Sleeper pick for ${esc(tName(roster))}" onchange="saveSleeperPick(${rid},this.value)">
-           <option value="">— Select —</option>
-           ${elig.map(pid => `<option value="${esc(pid)}"${pid === pickedPid ? ' selected' : ''}>${esc(pName(pid))}</option>`).join('')}
-         </select>`;
+      : `<span style="color:var(--text3);">Not declared</span>`;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -1371,11 +1368,6 @@ function buildSleeperGame(panel, g){
   panel.appendChild(card);
 }
 
-function saveSleeperPick(rid, pid){
-  if(!saved.sleeper) saved.sleeper = {};
-  saved.sleeper[rid] = { pick: pid };
-  saveStore();
-}
 
 /* ── THE TACTICIAN ───────────────────────────────────────────────────────── */
 
