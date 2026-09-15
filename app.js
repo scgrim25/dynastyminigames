@@ -433,6 +433,23 @@ async function csvGet(url){
   } catch(e){ console.warn('csvGet failed:', e); return []; }
 }
 
+/* Sleeper reports points: 0 for every team in a week that hasn't been played,
+   so "has data" can't just mean "not null" — an unplayed week would score as a
+   perfect 0-point margin. A week counts once the following week has started
+   and somebody actually scored. */
+function weekComplete(w){
+  // week1Date is the Wednesday the week opens, so the last game (Monday night)
+  // is over by the following morning. Six days plus a half-day of slack.
+  const end = new Date(WEEK1_DATE);
+  end.setDate(end.getDate() + (w - 1) * 7 + 6);
+  end.setHours(end.getHours() + 12);
+  return Date.now() >= end.getTime();
+}
+function weekPlayed(w){
+  if(!weekComplete(w)) return false;
+  return (matchups[w] || []).some(m => (m.points || 0) > 0);
+}
+
 function weekDate(w){
   const d = new Date(WEEK1_DATE);
   d.setDate(d.getDate() + (w - 1) * 7);
@@ -478,10 +495,15 @@ function oppPts(rid, w){
   const o = (matchups[w] || []).find(m => m.matchup_id === e.matchup_id && m.roster_id !== rid);
   return o ? o.points : null;
 }
+/* Players added to this roster in W1-4 by waiver, free agency or trade.
+   Failed waiver claims still carry an `adds` block, so filter on status —
+   otherwise a player you bid on and lost looks eligible. */
 function heistElig(rid){
   const s = new Set();
   [1,2,3,4].forEach(w => (transactions[w] || []).forEach(tx => {
-    if(tx.adds) Object.entries(tx.adds).forEach(([pid, r]) => { if(r === rid) s.add(pid); });
+    if(!tx.adds) return;
+    if(tx.status && tx.status !== 'complete') return;
+    Object.entries(tx.adds).forEach(([pid, r]) => { if(sameRoster(r, rid)) s.add(pid); });
   }));
   return [...s];
 }
@@ -1226,6 +1248,7 @@ function buildCardiac(panel, g){
   const rows = rosters.map(r => {
     const rid = r.roster_id;
     const diffs = WEEKS.map(w => {
+      if(!weekPlayed(w)) return null;
       const m = myPts(rid,w), o = oppPts(rid,w);
       return (m !== null && o !== null) ? Math.abs(m - o) : null;
     });
@@ -1286,7 +1309,7 @@ function buildCardiac(panel, g){
 /* ── COMEBACK KID ────────────────────────────────────────────────────────── */
 function buildComeback(panel, g){
   const rows = rosters.map(r => {
-    const scores = [10,11,12,13,14].map(w => myPts(r.roster_id, w));
+    const scores = [10,11,12,13,14].map(w => weekPlayed(w) ? myPts(r.roster_id, w) : null);
     let best = null;
     for(let i = 0; i < 4; i++){
       if(scores[i] !== null && scores[i+1] !== null){
@@ -2633,6 +2656,28 @@ function reportBoards(){
   });
 }
 
+/* Before declarations close, list what each manager could still pick.
+   Returns null once the window shuts — at that point it's just noise. */
+function reportEligibility(){
+  const g = GAMES.find(x => x.submission && x.submission.source === 'acquisitions');
+  if(!g) return null;
+  const dl = submissionDeadline(g);
+  if(dl !== null && dl <= Date.now()) return null;
+  if(!Object.keys(players).length) return null;
+
+  const rows = rosters.map(r => {
+    const owned = new Set(r.players || []);
+    const names = heistElig(r.roster_id)
+      .filter(pid => owned.has(pid))
+      .map(pid => pName(pid))
+      .filter(n => n && !/^\d+$/.test(n))
+      .sort();
+    return { name: tName(r), names };
+  }).filter(x => x.names.length);
+
+  return rows.length ? { game: g, rows } : null;
+}
+
 function reportData(week){
   const wk = matchups[week] || [];
   let top = null;
@@ -2706,6 +2751,12 @@ function reportText(week, { top, upcoming }){
     const rest = b.full ? [] : b.rows.slice(3);
     if(rest.length) lines.push('  ' + rest.map((r, i) => `${i + 4}. ${r.name}`).join(', '));
   });
+  const elig = reportEligibility();
+  if(elig){
+    lines.push('');
+    lines.push(`${elig.game.name} — eligible so far`);
+    elig.rows.forEach(r => lines.push(`  ${r.name}: ${r.names.join(', ')}`));
+  }
   const pending = all.filter(b => !b.rows.length);
   if(pending.length){
     lines.push('');
@@ -2748,6 +2799,8 @@ function drawReport(week, { top, upcoming }){
     }
     H += GAME_GAP;
   });
+  const elig = reportEligibility();
+  if(elig) H += 76 + elig.rows.length * 32;
   if(pending.length) H += 116;            // "still to come" strip
   H += upcoming ? 190 : 120;
 
@@ -2856,6 +2909,23 @@ function drawReport(week, { top, upcoming }){
     }
     y += GAME_GAP;
   });
+
+  // Who each manager could still declare, while the window is open.
+  if(elig){
+    const col = cssVar('--game-' + elig.game.color) || ACCENT;
+    c.fillStyle = TEXT3; c.font = '500 20px "Roboto Mono", monospace';
+    c.fillText(elig.game.name.toUpperCase() + ' — ELIGIBLE SO FAR', PAD, y + 4);
+    y += 30;
+    elig.rows.forEach(r => {
+      c.fillStyle = TEXT2; c.font = '600 21px "IBM Plex Sans", sans-serif';
+      c.fillText(trunc(r.name, '600 21px "IBM Plex Sans", sans-serif', 320), PAD + 8, y + 16);
+      const listFont = 'italic 400 20px "IBM Plex Sans", sans-serif';
+      c.fillStyle = TEXT3; c.font = listFont;
+      c.fillText(trunc(r.names.join(', '), listFont, W - PAD * 2 - 360), PAD + 344, y + 16);
+      y += 32;
+    });
+    y += 30;
+  }
 
   // Games with nothing on the board yet get one quiet strip at the bottom
   // rather than six empty headings up top.
