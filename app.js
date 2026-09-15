@@ -2720,6 +2720,23 @@ function reportBoards(){
 
 /* Before declarations close, list what each manager could still pick.
    Returns null once the window shuts — at that point it's just noise. */
+/* When the declaration window opens, or how long is left once it has. */
+function eligWindowNote(g){
+  const open = submissionOpens(g);
+  const shut = submissionDeadline(g);
+  const now = Date.now();
+  const days = ms => Math.max(0, Math.ceil(ms / 86400000));
+  if(open && now < open){
+    const d = days(open - now);
+    return d === 1 ? 'declarations open tomorrow' : `declarations open in ${d} days`;
+  }
+  if(shut && now < shut){
+    const d = days(shut - now);
+    return d === 1 ? 'declarations close tomorrow' : `declarations close in ${d} days`;
+  }
+  return shut ? 'declarations are closed' : 'declarations are open';
+}
+
 function reportEligibility(){
   const g = GAMES.find(x => x.submission && x.submission.source === 'acquisitions');
   if(!g) return null;
@@ -2816,17 +2833,13 @@ function reportText(week, { top, upcoming }){
   const elig = reportEligibility();
   if(elig){
     lines.push('');
-    lines.push(`${elig.game.name} (${elig.game.payoutLabel}) — eligible so far, nobody has declared`);
+    lines.push(`${elig.game.name} (${elig.game.payoutLabel}) — eligible so far, ${eligWindowNote(elig.game)}`);
     elig.rows.forEach(r => lines.push(`  ${r.name}: ${r.names.join(', ')}`));
   }
   const pending = all.filter(b => !b.rows.length && !(elig && elig.game.id === b.game.id));
   if(pending.length){
     lines.push('');
     lines.push('Still to come: ' + pending.map(b => `${b.game.name} (${b.game.payoutLabel})`).join(', '));
-  }
-  if(upcoming){
-    lines.push('');
-    lines.push(`⏰ ${upcoming.label} in ${fmtCountdown(upcoming.ms)}`);
   }
   lines.push('');
   lines.push(reportUrl(week));
@@ -2866,7 +2879,7 @@ function drawReport(week, { top, upcoming }){
   });
   if(elig) H += GAME_TITLE + 12 + elig.rows.length * 32 + GAME_GAP;
   if(pending.length) H += 116;            // "still to come" strip
-  H += upcoming ? 190 : 120;
+  H += 120;
 
   const dpr = 2;
   const canvas = document.createElement('canvas');
@@ -2990,7 +3003,7 @@ function drawReport(week, { top, upcoming }){
     y += 16;
 
     c.fillStyle = TEXT3; c.font = '500 19px "Roboto Mono", monospace';
-    c.fillText('ELIGIBLE SO FAR — NOBODY HAS DECLARED', PAD + 18, y + 14);
+    c.fillText('ELIGIBLE SO FAR — ' + eligWindowNote(elig.game).toUpperCase(), PAD + 18, y + 14);
     y += GAME_TITLE - 12;
 
     const nameFont = '500 24px "IBM Plex Sans", sans-serif';
@@ -3030,18 +3043,6 @@ function drawReport(week, { top, upcoming }){
       x += wChip + 10;
     });
     y += 62;
-  }
-
-  if(upcoming){
-    const g = GAMES.find(x => x.id === upcoming.gameId);
-    const col = g ? (cssVar('--game-' + g.color) || ACCENT) : ACCENT;
-    c.fillStyle = col; roundRect(c, PAD, y, W - PAD * 2, 84, 12); c.fill();
-    c.fillStyle = '#ffffff'; c.font = '600 26px "IBM Plex Sans", sans-serif';
-    c.fillText('⏰ ' + upcoming.label, PAD + 28, y + 51);
-    c.textAlign = 'right'; c.font = '700 30px "Roboto Mono", monospace';
-    c.fillText(fmtCountdown(upcoming.ms) || 'Locked', W - PAD - 28, y + 51);
-    c.textAlign = 'left';
-    y += 108;
   }
 
   c.fillStyle = TEXT3; c.font = '400 24px "Roboto Mono", monospace';
