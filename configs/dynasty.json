@@ -57,7 +57,7 @@
       "id": "longgame",
       "label": "Long Game Nominations",
       "gameId": "longgame",
-      "date": "2026-09-09T20:40:00-04:00"
+      "date": "2026-09-09T20:20:00-04:00"
     },
     {
       "id": "sleeper",
@@ -228,7 +228,7 @@
       "blurb": "Closest margins in W1–4, win or lose. Your biggest blowout gets dropped.",
       "desc": "Blowouts are boring. Cardiac King goes to whoever spends September sweating — the manager whose Weeks 1–4 matchups land on the thinnest margins, win or lose. Your ugliest week gets thrown out, so one blowout won't cost you it. Close only counts in horseshoes, hand grenades, and this.",
       "highlight": "Margin is absolute — a 2-point win and a 2-point loss score the same. Your worst week is dropped.",
-      "emptyHint": "Fills in automatically from Sleeper once Week 1 scores post.",
+      "emptyHint": "Fills in on its own once Week 1 scores post.",
       "rules": [
         "Your margin each week is how close the game was, win or lose",
         "Across Weeks 1 to 4, your biggest blowout is thrown out",
