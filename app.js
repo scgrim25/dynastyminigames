@@ -439,6 +439,16 @@ function weekDate(w){
   return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
 }
 
+/* Sheet values arrive as strings, Sleeper gives numbers, and a stray space in
+   a pasted cell is easy to miss. Compare leniently. */
+function sameRoster(a, b){
+  if(a === undefined || a === null || b === undefined || b === null) return false;
+  const x = String(a).trim(), y = String(b).trim();
+  if(x === y) return true;
+  const nx = Number(x), ny = Number(y);
+  return !isNaN(nx) && !isNaN(ny) && nx === ny;
+}
+
 function tName(roster){
   const u = users.find(u => u.user_id === roster.owner_id) || {};
   return (u.metadata && u.metadata.team_name && u.metadata.team_name.trim()) || u.display_name || `Team ${roster.roster_id}`;
@@ -1301,7 +1311,7 @@ function buildSleeperGame(panel, g){
   rosters.forEach(roster => {
     const rid = roster.roster_id;
     const elig = heistElig(rid);
-    const sheetPick = sheetPicks.find(row => row.roster_id === String(rid));
+    const sheetPick = sheetPicks.find(row => sameRoster(row.roster_id, rid));
     const pickedPid = sheetPick ? (elig.find(pid => pName(pid) === sheetPick.player_name) || '') : '';
 
     // Baseline: the sheet wins if the commissioner entered one, because league
@@ -1541,7 +1551,7 @@ function buildLongGame(panel, g){
   const WLABELS = Array.from({ length: 17 }, (_, i) => 'W' + (i + 1));
 
   const rows = rosters.map(r => {
-    const row = data.find(d => d.roster_id === String(r.roster_id))
+    const row = data.find(d => sameRoster(d.roster_id, r.roster_id))
       || data.find(d => (d.team_name || '').toLowerCase() === (tName(r) || '').toLowerCase())
       || data.find(d => (d.team_name || '').toLowerCase() === (dName(r) || '').toLowerCase())
       || {};
@@ -1555,6 +1565,17 @@ function buildLongGame(panel, g){
   capSt('longgame', rows.filter(x => x.gain !== null)
     .map(x => ({ rid: x.r.roster_id, val: (x.gain > 0 ? '+' : '') + x.gain.toLocaleString() })));
 
+  // Sparklines share one scale, centred on zero, so the steepness of a line
+  // actually means something. Scaling each row to its own min/max made every
+  // trend fill the full height — +5 looked identical to +76.
+  let maxSwing = 0;
+  rows.forEach(({ vals }) => {
+    const first = vals.find(v => v !== null);
+    if(first == null) return;
+    vals.forEach(v => { if(v !== null) maxSwing = Math.max(maxSwing, Math.abs(v - first)); });
+  });
+  if(maxSwing === 0) maxSwing = 1;
+
   const card = document.createElement('div');
   card.className = 'card';
   card.innerHTML = gameCardHead(g, null, 'KTC Superflex value · W1–W17 incl. playoffs');
@@ -1566,21 +1587,26 @@ function buildLongGame(panel, g){
     if(lead) tr.className = 'leader-row';
 
     const nonNull = vals.filter(v => v !== null);
-    const minV = nonNull.length ? Math.min(...nonNull) : 0;
-    const maxV = nonNull.length ? Math.max(...nonNull) : 1;
-    const range = (maxV - minV) || 1;
+    const first = nonNull.length ? nonNull[0] : null;
     const svgW = 120, svgH = 28, pad = 3;
+    const mid = svgH / 2, half = mid - pad;
     let path = '', started = false;
-    vals.forEach((v, vi) => {
-      if(v === null) return;
-      const x = pad + (vi / (WKS.length - 1)) * (svgW - pad * 2);
-      const y = svgH - pad - ((v - minV) / range) * (svgH - pad * 2);
-      path += (started ? ' L' : 'M') + x.toFixed(1) + ',' + y.toFixed(1);
-      started = true;
-    });
+    if(first !== null){
+      vals.forEach((v, vi) => {
+        if(v === null) return;
+        const x = pad + (vi / (WKS.length - 1)) * (svgW - pad * 2);
+        const y = mid - ((v - first) / maxSwing) * half;
+        path += (started ? ' L' : 'M') + x.toFixed(1) + ',' + y.toFixed(1);
+        started = true;
+      });
+    }
     const sparkColor = gain > 0 ? 'var(--c1)' : gain < 0 ? 'var(--c3)' : 'var(--text3)';
     const spark = path
-      ? `<svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" role="img" aria-label="Value trend"><path d="${path}" fill="none" stroke="${sparkColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+      ? `<svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" role="img"
+           aria-label="${gain !== null ? (gain > 0 ? 'Up ' : 'Down ') + Math.abs(gain) : 'No change'} since nomination">
+           <line x1="${pad}" y1="${mid}" x2="${svgW - pad}" y2="${mid}" stroke="var(--border)" stroke-width="1"/>
+           <path d="${path}" fill="none" stroke="${sparkColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+         </svg>`
       : '<span style="color:var(--text3);font-size:11px;">—</span>';
 
     tr.innerHTML = `
@@ -2300,7 +2326,7 @@ function existingSubmission(g){
   const mr = myRoster();
   if(!mr) return null;
   const rows = sheets[g.submission.sheet] || [];
-  const row = rows.find(r => String(r.roster_id) === String(mr.roster_id));
+  const row = rows.find(r => sameRoster(r.roster_id, mr.roster_id));
   const v = row ? row[g.submission.field] : '';
   return v ? String(v) : null;
 }
@@ -2311,7 +2337,7 @@ function submissionStamp(g){
   const mr = myRoster();
   if(!mr) return null;
   const rows = sheets[g.submission.sheet] || [];
-  const row = rows.find(r => String(r.roster_id) === String(mr.roster_id));
+  const row = rows.find(r => sameRoster(r.roster_id, mr.roster_id));
   const t = row && (row.submitted_at || row.timestamp);
   if(!t) return null;
   const d = new Date(t);
@@ -2521,7 +2547,7 @@ async function sendSubmission(gameId){
 
     // Reflect it immediately without waiting for the 5-minute cache to expire.
     const rows = sheets[g.submission.sheet] || (sheets[g.submission.sheet] = []);
-    let row = rows.find(x => String(x.roster_id) === String(mr.roster_id));
+    let row = rows.find(x => sameRoster(x.roster_id, mr.roster_id));
     if(!row){ row = { roster_id: String(mr.roster_id) }; rows.push(row); }
     row[g.submission.field] = value;
     row.submitted_at = out.submitted_at || new Date().toISOString();
@@ -2564,6 +2590,18 @@ function buildReportWeeks(){
     : '<option value="">—</option>';
   if(current && weeks.includes(Number(current))) sel.value = current;
   else if(weeks.length) sel.value = String(weeks[weeks.length - 1]);
+}
+
+/* Full standings per game for the report — every team, ranked. */
+function reportBoards(){
+  return GAMES.map(g => {
+    const arr = window._standings[g.id] || [];
+    const rows = arr.map(e => {
+      const ros = rosters.find(r => String(r.roster_id) === String(e.rid));
+      return ros ? { name: tName(ros), val: e.val } : null;
+    }).filter(Boolean);
+    return { game: g, rows };
+  });
 }
 
 function reportData(week){
@@ -2624,15 +2662,18 @@ function buildReport(argWeek){
   else render();
 }
 
-function reportText(week, { top, leaders, upcoming }){
+function reportText(week, { top, upcoming }){
   const lines = [];
   lines.push(`🏈 ${(LEAGUE_CONFIG.leagueName || 'League').toUpperCase()} — WEEK ${week}`);
   lines.push('');
   if(top) lines.push(`🔥 Top score: ${top.name} — ${top.points.toFixed(1)}`);
-  lines.push('');
-  lines.push('👑 MINIGAME LEADERS');
-  leaders.forEach(l => {
-    lines.push(l.name ? `${l.game.name} · ${l.name} ${l.val}` : `${l.game.name} · not started`);
+  reportBoards().forEach(b => {
+    lines.push('');
+    lines.push(`${b.game.name} (${b.game.payoutLabel})`);
+    if(!b.rows.length){ lines.push('  nothing to score yet'); return; }
+    b.rows.slice(0, 3).forEach((r, i) => lines.push(`  ${i + 1}. ${r.name} ${r.val}`));
+    const rest = b.rows.slice(3);
+    if(rest.length) lines.push('  ' + rest.map((r, i) => `${i + 4}. ${r.name}`).join(', '));
   });
   if(upcoming){
     lines.push('');
@@ -2651,16 +2692,26 @@ function cssVar(name){
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-function drawReport(week, { top, leaders, upcoming }){
-  const rowH = 92;
-  const headH = 470;
-  const footH = upcoming ? 190 : 130;
-  const H = headH + leaders.length * rowH + footH;
+function drawReport(week, { top, upcoming }){
+  const boards = reportBoards();
+  const PAD = 64, W = REPORT_W;
+
+  // Measure first so the canvas is exactly as tall as the content.
+  const HEAD = 300;
+  const GAME_TITLE = 52, TOP_ROW = 40, REST_LINE = 30, GAME_GAP = 22;
+  let H = HEAD;
+  boards.forEach(b => {
+    H += GAME_TITLE;
+    H += Math.min(3, b.rows.length) * TOP_ROW;
+    if(b.rows.length > 3) H += REST_LINE * Math.ceil((b.rows.length - 3) / 3);
+    if(!b.rows.length) H += TOP_ROW;
+    H += GAME_GAP;
+  });
+  H += upcoming ? 190 : 120;
 
   const dpr = 2;
   const canvas = document.createElement('canvas');
-  canvas.width = REPORT_W * dpr;
-  canvas.height = H * dpr;
+  canvas.width = W * dpr; canvas.height = H * dpr;
   const c = canvas.getContext('2d');
   c.scale(dpr, dpr);
 
@@ -2672,135 +2723,108 @@ function drawReport(week, { top, leaders, upcoming }){
   const BORDER = cssVar('--border') || '#ddd8ce';
   const ACCENT = cssVar('--accent') || '#2d6a4f';
 
-  const PAD = 64;
-  c.fillStyle = BG;
-  c.fillRect(0, 0, REPORT_W, H);
-  c.fillStyle = ACCENT;
-  c.fillRect(0, 0, REPORT_W, 14);
+  c.fillStyle = BG; c.fillRect(0, 0, W, H);
+  c.fillStyle = ACCENT; c.fillRect(0, 0, W, 14);
+  c.textBaseline = 'alphabetic'; c.textAlign = 'left';
 
-  const truncate = (txt, font, max) => {
+  const trunc = (txt, font, max) => {
     c.font = font;
-    let s = String(txt);
-    if(c.measureText(s).width <= max) return s;
-    while(s.length > 1 && c.measureText(s + '…').width > max) s = s.slice(0, -1);
-    return s + '…';
+    let t = String(txt);
+    if(c.measureText(t).width <= max) return t;
+    while(t.length > 1 && c.measureText(t + '…').width > max) t = t.slice(0, -1);
+    return t + '…';
   };
-  const line = y => {
-    c.strokeStyle = BORDER; c.lineWidth = 1;
-    c.beginPath(); c.moveTo(PAD, y + .5); c.lineTo(REPORT_W - PAD, y + .5); c.stroke();
-  };
+  const rule = y => { c.strokeStyle = BORDER; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(PAD, y + .5); c.lineTo(W - PAD, y + .5); c.stroke(); };
 
-  let y = 96;
-  c.textBaseline = 'alphabetic';
-  c.textAlign = 'left';
-
-  // Eyebrow
-  c.fillStyle = TEXT3;
-  c.font = '500 24px "Roboto Mono", monospace';
+  let y = 88;
+  c.fillStyle = TEXT3; c.font = '500 24px "Roboto Mono", monospace';
   c.fillText((LEAGUE_CONFIG.leagueName || 'League').toUpperCase(), PAD, y);
 
-  // Week
-  y += 84;
-  c.fillStyle = TEXT;
-  c.font = '900 84px Fraunces, Georgia, serif';
+  y += 80;
+  c.fillStyle = TEXT; c.font = '900 80px Fraunces, Georgia, serif';
   c.fillText('Week ' + week, PAD, y);
-
-  c.fillStyle = TEXT3;
-  c.font = '400 26px "Roboto Mono", monospace';
+  c.fillStyle = TEXT3; c.font = '400 26px "Roboto Mono", monospace';
   c.textAlign = 'right';
-  c.fillText('MiniGames · ' + (LEAGUE_CONFIG.season || ''), REPORT_W - PAD, y);
+  c.fillText('MiniGames · ' + (LEAGUE_CONFIG.season || ''), W - PAD, y);
   c.textAlign = 'left';
 
-  y += 42;
-  line(y);
-
-  // Top score
-  y += 56;
-  c.fillStyle = TEXT3;
-  c.font = '500 22px "Roboto Mono", monospace';
-  c.fillText('TOP SCORE THIS WEEK', PAD, y);
-
-  y += 54;
+  y += 46;
   if(top){
-    c.fillStyle = TEXT;
-    const f = '700 44px Fraunces, Georgia, serif';
-    c.font = f;
-    c.fillText(truncate(top.name, f, REPORT_W - PAD * 2 - 240), PAD, y);
-    c.fillStyle = ACCENT;
-    c.font = '700 44px "Roboto Mono", monospace';
-    c.textAlign = 'right';
-    c.fillText(top.points.toFixed(1), REPORT_W - PAD, y);
-    c.textAlign = 'left';
-  } else {
-    c.fillStyle = TEXT3;
-    c.font = '400 32px "IBM Plex Sans", sans-serif';
-    c.fillText('No scores posted yet', PAD, y);
+    c.fillStyle = TEXT2; c.font = '500 25px "IBM Plex Sans", sans-serif';
+    c.fillText('Top score this week: ' + trunc(top.name, '500 25px "IBM Plex Sans", sans-serif', 560)
+      + '  ·  ' + top.points.toFixed(1), PAD, y);
   }
+  y += 34; rule(y); y += 40;
 
-  y += 40;
-  line(y);
+  boards.forEach(b => {
+    const col = cssVar('--game-' + b.game.color) || ACCENT;
 
-  // Leaders
-  y += 54;
-  c.fillStyle = TEXT3;
-  c.font = '500 22px "Roboto Mono", monospace';
-  c.fillText('MINIGAME LEADERS', PAD, y);
-
-  y += 26;
-  leaders.forEach(l => {
-    const col = cssVar('--game-' + l.game.color) || ACCENT;
-
-    // Card
-    c.fillStyle = SURF;
-    roundRect(c, PAD, y, REPORT_W - PAD * 2, rowH - 12, 12);
-    c.fill();
-    c.fillStyle = col;
-    roundRect(c, PAD, y, 6, rowH - 12, 3);
-    c.fill();
-
-    const tx = PAD + 34;
-    c.fillStyle = col;
-    c.font = '700 30px Fraunces, Georgia, serif';
-    c.fillText(truncate(l.game.name, '700 30px Fraunces, Georgia, serif', 420), tx, y + 36);
-
-    c.fillStyle = l.name ? TEXT2 : TEXT3;
-    c.font = '500 25px "IBM Plex Sans", sans-serif';
-    c.fillText(truncate(l.name || 'Not started', '500 25px "IBM Plex Sans", sans-serif', 420), tx, y + 68);
-
+    c.fillStyle = col; c.fillRect(PAD, y - 20, 5, 26);
+    c.fillStyle = TEXT; c.font = '700 32px Fraunces, Georgia, serif';
+    c.fillText(b.game.name, PAD + 18, y);
+    c.fillStyle = TEXT3; c.font = '500 22px "Roboto Mono", monospace';
     c.textAlign = 'right';
-    c.fillStyle = l.val ? col : TEXT3;
-    c.font = '700 34px "Roboto Mono", monospace';
-    c.fillText(l.val || '—', REPORT_W - PAD - 26, y + 54);
+    c.fillText(b.game.payoutLabel, W - PAD, y);
     c.textAlign = 'left';
+    y += GAME_TITLE - 20;
 
-    y += rowH;
+    if(!b.rows.length){
+      c.fillStyle = TEXT3; c.font = '400 24px "IBM Plex Sans", sans-serif';
+      c.fillText('Nothing to score yet', PAD + 18, y + 12);
+      y += TOP_ROW + GAME_GAP;
+      return;
+    }
+
+    // Top three get the space
+    b.rows.slice(0, 3).forEach((r, i) => {
+      const lead = i === 0;
+      if(lead){ c.fillStyle = SURF; roundRect(c, PAD + 12, y - 16, W - PAD * 2 - 12, 34, 8); c.fill(); }
+      c.fillStyle = lead ? col : TEXT3;
+      c.font = (lead ? '700' : '500') + ' 24px "Roboto Mono", monospace';
+      c.fillText(String(i + 1), PAD + 24, y + 8);
+      c.fillStyle = lead ? TEXT : TEXT2;
+      c.font = (lead ? '700' : '500') + ' 26px "IBM Plex Sans", sans-serif';
+      c.fillText(trunc(r.name, '600 26px "IBM Plex Sans", sans-serif', 620), PAD + 60, y + 8);
+      c.fillStyle = lead ? col : TEXT2;
+      c.font = (lead ? '700' : '500') + ' 25px "Roboto Mono", monospace';
+      c.textAlign = 'right';
+      c.fillText(r.val, W - PAD - 22, y + 8);
+      c.textAlign = 'left';
+      y += TOP_ROW;
+    });
+
+    // Everyone else, poll-style, four to a line
+    const rest = b.rows.slice(3);
+    if(rest.length){
+      c.fillStyle = TEXT3; c.font = '400 20px "IBM Plex Sans", sans-serif';
+      for(let i = 0; i < rest.length; i += 3){
+        const part = rest.slice(i, i + 3)
+          .map((r, k) => `${i + k + 4}. ${r.name} ${r.val}`)
+          .join('    ');
+        c.fillText(trunc(part, '400 20px "IBM Plex Sans", sans-serif', W - PAD * 2 - 24), PAD + 24, y + 6);
+        y += REST_LINE;
+      }
+    }
+    y += GAME_GAP;
   });
 
-  // Deadline
-  y += 22;
   if(upcoming){
     const g = GAMES.find(x => x.id === upcoming.gameId);
     const col = g ? (cssVar('--game-' + g.color) || ACCENT) : ACCENT;
-    c.fillStyle = col;
-    roundRect(c, PAD, y, REPORT_W - PAD * 2, 84, 12);
-    c.fill();
-    c.fillStyle = '#ffffff';
-    c.font = '600 26px "IBM Plex Sans", sans-serif';
+    c.fillStyle = col; roundRect(c, PAD, y, W - PAD * 2, 84, 12); c.fill();
+    c.fillStyle = '#ffffff'; c.font = '600 26px "IBM Plex Sans", sans-serif';
     c.fillText('⏰ ' + upcoming.label, PAD + 28, y + 51);
-    c.textAlign = 'right';
-    c.font = '700 30px "Roboto Mono", monospace';
-    c.fillText(fmtCountdown(upcoming.ms) || 'Locked', REPORT_W - PAD - 28, y + 51);
+    c.textAlign = 'right'; c.font = '700 30px "Roboto Mono", monospace';
+    c.fillText(fmtCountdown(upcoming.ms) || 'Locked', W - PAD - 28, y + 51);
     c.textAlign = 'left';
     y += 108;
   }
 
-  // Footer
-  c.fillStyle = TEXT3;
-  c.font = '400 24px "Roboto Mono", monospace';
+  c.fillStyle = TEXT3; c.font = '400 24px "Roboto Mono", monospace';
   c.textAlign = 'center';
-  c.fillText(location.host || 'dynastyminigames.com', REPORT_W / 2, y + 40);
+  c.fillText(location.host || 'dynastyminigames.com', W / 2, y + 38);
   c.textAlign = 'left';
-
   return canvas;
 }
 
