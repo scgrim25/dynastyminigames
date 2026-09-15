@@ -2816,10 +2816,10 @@ function reportText(week, { top, upcoming }){
   const elig = reportEligibility();
   if(elig){
     lines.push('');
-    lines.push(`${elig.game.name} — eligible so far`);
+    lines.push(`${elig.game.name} (${elig.game.payoutLabel}) — eligible so far, nobody has declared`);
     elig.rows.forEach(r => lines.push(`  ${r.name}: ${r.names.join(', ')}`));
   }
-  const pending = all.filter(b => !b.rows.length);
+  const pending = all.filter(b => !b.rows.length && !(elig && elig.game.id === b.game.id));
   if(pending.length){
     lines.push('');
     lines.push('Still to come: ' + pending.map(b => `${b.game.name} (${b.game.payoutLabel})`).join(', '));
@@ -2843,8 +2843,11 @@ function cssVar(name){
 
 function drawReport(week, { top, upcoming }){
   const all = reportBoards();
+  const elig = reportEligibility();
   const boards  = all.filter(b => b.rows.length);
-  const pending = all.filter(b => !b.rows.length);
+  // A game with an eligibility block is already covered — don't also list it
+  // under "still to come", which reads as a contradiction.
+  const pending = all.filter(b => !b.rows.length && !(elig && elig.game.id === b.game.id));
   const PAD = 64, W = REPORT_W;
 
   // Measure first so the canvas is exactly as tall as the content.
@@ -2861,8 +2864,7 @@ function drawReport(week, { top, upcoming }){
     }
     H += GAME_GAP;
   });
-  const elig = reportEligibility();
-  if(elig) H += 76 + elig.rows.length * 32;
+  if(elig) H += GAME_TITLE + 12 + elig.rows.length * 32 + GAME_GAP;
   if(pending.length) H += 116;            // "still to come" strip
   H += upcoming ? 190 : 120;
 
@@ -2972,21 +2974,35 @@ function drawReport(week, { top, upcoming }){
     y += GAME_GAP;
   });
 
-  // Who each manager could still declare, while the window is open.
+  // Who each manager could still declare, while the window is open. Same
+  // header and column positions as a board so it reads as part of the page.
   if(elig){
     const col = cssVar('--game-' + elig.game.color) || ACCENT;
-    c.fillStyle = TEXT3; c.font = '500 20px "Roboto Mono", monospace';
-    c.fillText(elig.game.name.toUpperCase() + ' — ELIGIBLE SO FAR', PAD, y + 4);
-    y += 30;
+    const SUB_X = PAD + 420;
+
+    c.fillStyle = col; c.fillRect(PAD, y - 20, 5, 26);
+    c.fillStyle = TEXT; c.font = '700 32px Fraunces, Georgia, serif';
+    c.fillText(elig.game.name, PAD + 18, y);
+    c.fillStyle = TEXT3; c.font = '500 22px "Roboto Mono", monospace';
+    c.textAlign = 'right';
+    c.fillText(elig.game.payoutLabel, W - PAD, y);
+    c.textAlign = 'left';
+    y += 16;
+
+    c.fillStyle = TEXT3; c.font = '500 19px "Roboto Mono", monospace';
+    c.fillText('ELIGIBLE SO FAR — NOBODY HAS DECLARED', PAD + 18, y + 14);
+    y += GAME_TITLE - 12;
+
+    const nameFont = '500 24px "IBM Plex Sans", sans-serif';
+    const listFont = 'italic 400 21px "IBM Plex Sans", sans-serif';
     elig.rows.forEach(r => {
-      c.fillStyle = TEXT2; c.font = '600 21px "IBM Plex Sans", sans-serif';
-      c.fillText(trunc(r.name, '600 21px "IBM Plex Sans", sans-serif', 320), PAD + 8, y + 16);
-      const listFont = 'italic 400 20px "IBM Plex Sans", sans-serif';
+      c.fillStyle = TEXT2; c.font = nameFont;
+      c.fillText(trunc(r.name, nameFont, SUB_X - (PAD + 24) - 16), PAD + 24, y + 16);
       c.fillStyle = TEXT3; c.font = listFont;
-      c.fillText(trunc(r.names.join(', '), listFont, W - PAD * 2 - 360), PAD + 344, y + 16);
+      c.fillText(trunc(r.names.join(', '), listFont, W - PAD - SUB_X), SUB_X, y + 16);
       y += 32;
     });
-    y += 30;
+    y += GAME_GAP + 8;
   }
 
   // Games with nothing on the board yet get one quiet strip at the bottom
