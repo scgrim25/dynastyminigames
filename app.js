@@ -496,13 +496,20 @@ function oppPts(rid, w){
   return o ? o.points : null;
 }
 /* Players added to this roster in W1-4 by waiver, free agency or trade.
-   Failed waiver claims still carry an `adds` block, so filter on status —
-   otherwise a player you bid on and lost looks eligible. */
+   Two traps here:
+     - Failed waiver claims still carry an `adds` block, so check status.
+     - Sleeper files every offseason move — rookie draft, trades, signings —
+       under week 1. Without a timestamp check a dynasty roster looks like it
+       was entirely "acquired in W1-4". Bound it to the actual season window. */
 function heistElig(rid){
+  const open = WEEK1_DATE ? new Date(WEEK1_DATE).getTime() : 0;
+  const shut = open + 5 * 7 * 86400000;          // start of week 5
   const s = new Set();
   [1,2,3,4].forEach(w => (transactions[w] || []).forEach(tx => {
     if(!tx.adds) return;
     if(tx.status && tx.status !== 'complete') return;
+    const when = Number(tx.status_updated || tx.created || 0);
+    if(when && (when < open || when >= shut)) return;
     Object.entries(tx.adds).forEach(([pid, r]) => { if(sameRoster(r, rid)) s.add(pid); });
   }));
   return [...s];
