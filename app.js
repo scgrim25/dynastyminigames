@@ -1222,41 +1222,64 @@ function gameCardHead(g, title, sub){
 
 /* ── CARDIAC KING ────────────────────────────────────────────────────────── */
 function buildCardiac(panel, g){
+  const WEEKS = [1,2,3,4];
   const rows = rosters.map(r => {
     const rid = r.roster_id;
-    const diffs = [1,2,3,4].map(w => {
+    const diffs = WEEKS.map(w => {
       const m = myPts(rid,w), o = oppPts(rid,w);
       return (m !== null && o !== null) ? Math.abs(m - o) : null;
     });
-    const valid = diffs.filter(d => d !== null);
-    let avg = null;
-    if(valid.length >= 3){
-      const s = [...valid].sort((a,b) => a - b);
-      avg = s.slice(0,3).reduce((a,b) => a + b, 0) / 3;
-    }
-    return { r, diffs, avg };
-  }).sort((a,b) => (a.avg ?? 999) - (b.avg ?? 999));
+    const valid = diffs.filter(d => d !== null).sort((a,b) => a - b);
+    // Official score needs 3 weeks (best 3 of 4). Before that, show a running
+    // number from whatever has been played so the game isn't dead for a month.
+    const avg = valid.length >= 3
+      ? valid.slice(0,3).reduce((a,b) => a + b, 0) / 3
+      : null;
+    const running = valid.length
+      ? valid.slice(0, Math.min(3, valid.length)).reduce((a,b) => a + b, 0) / Math.min(3, valid.length)
+      : null;
+    return { r, diffs, avg, running, played: valid.length };
+  }).sort((a,b) => ((a.avg ?? a.running) ?? 999) - ((b.avg ?? b.running) ?? 999));
 
   capSt('cardiac', rows.filter(x => x.avg !== null).map(x => ({ rid: x.r.roster_id, val: x.avg.toFixed(1) + ' avg' })));
 
-  if(!rows.some(x => x.avg !== null)){ panel.appendChild(emptyCard(g, '💔')); return; }
+  const anyData = rows.some(x => x.played > 0);
+  if(!anyData){ panel.appendChild(emptyCard(g, '💔')); return; }
+
+  const final = rows.every(x => x.avg !== null);
+  const maxPlayed = Math.max(...rows.map(x => x.played));
 
   const card = document.createElement('div');
   card.className = 'card';
-  card.innerHTML = gameCardHead(g, null, 'Closest 3 of 4');
-  const t = mkTable(['','Team','>W1','>W2','>W3','>W4','>Best 3 Avg']);
-  rows.forEach(({ r, diffs, avg }, i) => {
-    const lead = i === 0 && avg !== null;
+  card.innerHTML = gameCardHead(g, null,
+    final ? 'Closest 3 of 4 · final'
+          : `Closest 3 of 4 · running after ${maxPlayed} week${maxPlayed === 1 ? '' : 's'}`);
+
+  const t = mkTable(['','Team','>W1','>W2','>W3','>W4', final ? '>Best 3 Avg' : '>Running Avg']);
+  rows.forEach(({ r, diffs, avg, running, played }, i) => {
+    const shown = avg !== null ? avg : running;
+    const lead = i === 0 && shown !== null;
     const tr = document.createElement('tr');
     if(lead) tr.className = 'leader-row';
     tr.innerHTML = `
-      <td class="rank-num">${i+1}</td>
+      <td class="rank-num">${shown !== null ? i+1 : '—'}</td>
       ${teamCell(r)}
-      ${diffs.map(d => `<td class="mv r">${d !== null ? d.toFixed(1) : '—'}</td>`).join('')}
-      <td class="mv r bold" style="color:${lead ? 'var(--g)' : 'var(--text2)'};">${lead ? '<span class="badge badge-green">👑</span> ' : ''}${avg !== null ? avg.toFixed(1) : '—'}</td>`;
+      ${diffs.map(dv => `<td class="mv r">${dv !== null ? dv.toFixed(1) : '—'}</td>`).join('')}
+      <td class="mv r bold" style="color:${lead ? 'var(--g)' : avg !== null ? 'var(--text2)' : 'var(--text3)'};">${
+        lead ? '<span class="badge badge-green">👑</span> ' : ''}${
+        shown !== null ? shown.toFixed(1) : '—'}</td>`;
     t.querySelector('tbody').appendChild(tr);
   });
   card.appendChild(t);
+
+  if(!final){
+    const note = document.createElement('div');
+    note.className = 'leader-note';
+    note.textContent = maxPlayed < 3
+      ? `Running average of the weeks played so far. From Week 3 the score becomes your closest 3 of 4, and your biggest blowout gets dropped.`
+      : `Closest 3 of 4 so far. One week left — your biggest blowout will be dropped.`;
+    card.appendChild(note);
+  }
   panel.appendChild(card);
 }
 
@@ -2596,11 +2619,17 @@ function buildReportWeeks(){
 function reportBoards(){
   return GAMES.map(g => {
     const arr = window._standings[g.id] || [];
+    // Games where managers declare a player carry it through to the report.
+    const sub = g.submission && g.submission.field === 'player_name'
+      ? (sheets[g.submission.sheet] || []) : null;
     const rows = arr.map(e => {
-      const ros = rosters.find(r => String(r.roster_id) === String(e.rid));
-      return ros ? { name: tName(ros), val: e.val } : null;
+      const ros = rosters.find(r => sameRoster(r.roster_id, e.rid));
+      if(!ros) return null;
+      const srow = sub ? sub.find(x => sameRoster(x.roster_id, e.rid)) : null;
+      return { name: tName(ros), val: e.val, sub: srow ? (srow.player_name || '') : '' };
     }).filter(Boolean);
-    return { game: g, rows };
+    // A board with players listed is worth showing in full.
+    return { game: g, rows, full: rows.some(r => r.sub) };
   });
 }
 
@@ -2667,14 +2696,21 @@ function reportText(week, { top, upcoming }){
   lines.push(`🏈 ${(LEAGUE_CONFIG.leagueName || 'League').toUpperCase()} — WEEK ${week}`);
   lines.push('');
   if(top) lines.push(`🔥 Top score: ${top.name} — ${top.points.toFixed(1)}`);
-  reportBoards().forEach(b => {
+  const all = reportBoards();
+  all.filter(b => b.rows.length).forEach(b => {
     lines.push('');
     lines.push(`${b.game.name} (${b.game.payoutLabel})`);
-    if(!b.rows.length){ lines.push('  nothing to score yet'); return; }
-    b.rows.slice(0, 3).forEach((r, i) => lines.push(`  ${i + 1}. ${r.name} ${r.val}`));
-    const rest = b.rows.slice(3);
+    const shown = b.full ? b.rows : b.rows.slice(0, 3);
+    shown.forEach((r, i) => lines.push(
+      `  ${i + 1}. ${r.name}${r.sub ? ' — ' + r.sub : ''} ${r.val}`));
+    const rest = b.full ? [] : b.rows.slice(3);
     if(rest.length) lines.push('  ' + rest.map((r, i) => `${i + 4}. ${r.name}`).join(', '));
   });
+  const pending = all.filter(b => !b.rows.length);
+  if(pending.length){
+    lines.push('');
+    lines.push('Still to come: ' + pending.map(b => `${b.game.name} (${b.game.payoutLabel})`).join(', '));
+  }
   if(upcoming){
     lines.push('');
     lines.push(`⏰ ${upcoming.label} in ${fmtCountdown(upcoming.ms)}`);
@@ -2693,7 +2729,9 @@ function cssVar(name){
 }
 
 function drawReport(week, { top, upcoming }){
-  const boards = reportBoards();
+  const all = reportBoards();
+  const boards  = all.filter(b => b.rows.length);
+  const pending = all.filter(b => !b.rows.length);
   const PAD = 64, W = REPORT_W;
 
   // Measure first so the canvas is exactly as tall as the content.
@@ -2702,11 +2740,15 @@ function drawReport(week, { top, upcoming }){
   let H = HEAD;
   boards.forEach(b => {
     H += GAME_TITLE;
-    H += Math.min(3, b.rows.length) * TOP_ROW;
-    if(b.rows.length > 3) H += REST_LINE * Math.ceil((b.rows.length - 3) / 3);
-    if(!b.rows.length) H += TOP_ROW;
+    if(b.full){
+      H += b.rows.length * TOP_ROW;
+    } else {
+      H += Math.min(3, b.rows.length) * TOP_ROW;
+      if(b.rows.length > 3) H += REST_LINE * Math.ceil((b.rows.length - 3) / 3);
+    }
     H += GAME_GAP;
   });
+  if(pending.length) H += 116;            // "still to come" strip
   H += upcoming ? 190 : 120;
 
   const dpr = 2;
@@ -2769,23 +2811,30 @@ function drawReport(week, { top, upcoming }){
     c.textAlign = 'left';
     y += GAME_TITLE - 20;
 
-    if(!b.rows.length){
-      c.fillStyle = TEXT3; c.font = '400 24px "IBM Plex Sans", sans-serif';
-      c.fillText('Nothing to score yet', PAD + 18, y + 12);
-      y += TOP_ROW + GAME_GAP;
-      return;
-    }
-
-    // Top three get the space
-    b.rows.slice(0, 3).forEach((r, i) => {
+    const shown = b.full ? b.rows : b.rows.slice(0, 3);
+    shown.forEach((r, i) => {
       const lead = i === 0;
       if(lead){ c.fillStyle = SURF; roundRect(c, PAD + 12, y - 16, W - PAD * 2 - 12, 34, 8); c.fill(); }
       c.fillStyle = lead ? col : TEXT3;
       c.font = (lead ? '700' : '500') + ' 24px "Roboto Mono", monospace';
       c.fillText(String(i + 1), PAD + 24, y + 8);
+
+      // Player sits in its own column so the rows line up regardless of how
+      // long a team name is.
+      const SUB_X = PAD + 420;
+      const nameFont = (lead ? '700' : '500') + ' 26px "IBM Plex Sans", sans-serif';
+      const nameMax = r.sub ? (SUB_X - (PAD + 60) - 16) : 620;
       c.fillStyle = lead ? TEXT : TEXT2;
-      c.font = (lead ? '700' : '500') + ' 26px "IBM Plex Sans", sans-serif';
-      c.fillText(trunc(r.name, '600 26px "IBM Plex Sans", sans-serif', 620), PAD + 60, y + 8);
+      c.font = nameFont;
+      c.fillText(trunc(r.name, nameFont, nameMax), PAD + 60, y + 8);
+
+      if(r.sub){
+        const subFont = 'italic 400 23px "IBM Plex Sans", sans-serif';
+        c.fillStyle = TEXT3;
+        c.font = subFont;
+        c.fillText(trunc(r.sub, subFont, W - PAD - 150 - SUB_X), SUB_X, y + 8);
+      }
+
       c.fillStyle = lead ? col : TEXT2;
       c.font = (lead ? '700' : '500') + ' 25px "Roboto Mono", monospace';
       c.textAlign = 'right';
@@ -2794,8 +2843,7 @@ function drawReport(week, { top, upcoming }){
       y += TOP_ROW;
     });
 
-    // Everyone else, poll-style, four to a line
-    const rest = b.rows.slice(3);
+    const rest = b.full ? [] : b.rows.slice(3);
     if(rest.length){
       c.fillStyle = TEXT3; c.font = '400 20px "IBM Plex Sans", sans-serif';
       for(let i = 0; i < rest.length; i += 3){
@@ -2808,6 +2856,33 @@ function drawReport(week, { top, upcoming }){
     }
     y += GAME_GAP;
   });
+
+  // Games with nothing on the board yet get one quiet strip at the bottom
+  // rather than six empty headings up top.
+  if(pending.length){
+    c.fillStyle = TEXT3;
+    c.font = '500 20px "Roboto Mono", monospace';
+    c.fillText('STILL TO COME', PAD, y + 4);
+    y += 26;
+
+    let x = PAD;
+    const chipFont = '600 22px "IBM Plex Sans", sans-serif';
+    pending.forEach(b => {
+      const col = cssVar('--game-' + b.game.color) || ACCENT;
+      const label = `${b.game.name}  ${b.game.payoutLabel}`;
+      c.font = chipFont;
+      const wChip = c.measureText(label).width + 36;
+      if(x + wChip > W - PAD){ x = PAD; y += 46; }
+      c.fillStyle = SURF;
+      roundRect(c, x, y, wChip, 38, 19); c.fill();
+      c.fillStyle = col;
+      c.beginPath(); c.arc(x + 18, y + 19, 5, 0, Math.PI * 2); c.fill();
+      c.fillStyle = TEXT2; c.font = chipFont;
+      c.fillText(label, x + 32, y + 26);
+      x += wChip + 10;
+    });
+    y += 62;
+  }
 
   if(upcoming){
     const g = GAMES.find(x => x.id === upcoming.gameId);
