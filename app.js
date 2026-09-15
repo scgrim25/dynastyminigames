@@ -1429,6 +1429,61 @@ function buildSleeperGame(panel, g){
     card.appendChild(ldr);
   }
   panel.appendChild(card);
+
+  buildEligibilityCard(panel, g);
+}
+
+/* Who each manager could still declare. Only worth showing while the window is
+   open — afterwards the picks themselves are the story. */
+function buildEligibilityCard(panel, g){
+  const dl = submissionDeadline(g);
+  if(dl !== null && dl <= Date.now()) return;
+
+  const namesReady = Object.keys(players).length > 0;
+  const rows = rosters.map(r => {
+    const owned = new Set(r.players || []);
+    const list = heistElig(r.roster_id)
+      .filter(pid => owned.has(pid))
+      .map(pid => pName(pid))
+      .filter(n => n && n !== String(n).match(/^\d+$/)?.[0])
+      .sort();
+    return { r, list };
+  });
+
+  const anyone = rows.some(x => x.list.length);
+  const card = document.createElement('div');
+  card.className = 'card';
+  const opensAt = submissionOpens(g);
+  const sub = opensAt && Date.now() < opensAt
+    ? 'Declarations open ' + new Date(opensAt).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+    : 'Declare yours on the Submit page';
+  card.innerHTML = `<div class="card-head"><div>
+      <div class="card-title" style="color:var(--g)">Eligible Acquisitions</div>
+      <div class="card-sub">Added in W1–4 and still rostered · ${esc(sub)}</div>
+    </div></div>`;
+
+  if(!namesReady){
+    card.innerHTML += '<div class="card-empty">Loading player names…</div>';
+    panel.appendChild(card); return;
+  }
+  if(!anyone){
+    card.innerHTML += `<div class="card-empty"><div class="icon">🪝</div>
+      Nobody has picked anyone up yet. Anything you add through Week 4 shows up here.</div>`;
+    panel.appendChild(card); return;
+  }
+
+  const t = mkTable(['Team', 'Eligible players', '>Count']);
+  rows.sort((a, b) => b.list.length - a.list.length).forEach(({ r, list }) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      ${teamCell(r)}
+      <td class="tdc" style="font-size:13px;line-height:1.5;color:${list.length ? 'var(--text2)' : 'var(--text3)'};">${
+        list.length ? esc(list.join(', ')) : 'Nothing yet'}</td>
+      <td class="mv r" style="color:var(--text3);">${list.length || '—'}</td>`;
+    t.querySelector('tbody').appendChild(tr);
+  });
+  card.appendChild(t);
+  panel.appendChild(card);
 }
 
 
