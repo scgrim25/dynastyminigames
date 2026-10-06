@@ -504,6 +504,19 @@ table.t{width:100%;border-collapse:collapse;}
 .rank-num{font-family:var(--mono);font-size:11px;color:var(--text3);padding:10px 8px 10px 16px;width:40px;text-align:center;}
 .leader-row td{background:#f0fdf4!important;}
 .leader-row:hover td{background:#dcfce7!important;}
+
+/* Still tracked, no longer playing for the money. Dimmed rather than hidden —
+   the chart only reads properly with every nomination on it. */
+.row-out td{background:var(--surface2);color:var(--text3);}
+.row-out:hover td{background:var(--surface2);}
+.row-out .team-name,.row-out .mv,.row-out .tdc{color:var(--text3);font-weight:500;}
+.row-out .av,.row-out .av-placeholder{opacity:.45;}
+.row-out svg{opacity:.5;}
+.tag-out{
+  display:inline-block;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:1px;
+  background:var(--surface2);color:var(--text3);border:1px solid var(--border);
+  border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle;cursor:help;
+}
 .bar-cell{padding:0 14px;min-width:100px;}
 .bar-bg{height:6px;background:var(--surface2);border-radius:4px;overflow:hidden;}
 .bar-fill{height:100%;border-radius:4px;}
