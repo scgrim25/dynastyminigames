@@ -521,19 +521,29 @@ function heistElig(rid){
    player's points for weeks somebody owned him, so "didn't play" and "wasn't
    rostered" look the same. That tab is where the call gets made. Rows are
    keyed by player_id, falling back to the name for a row typed by hand. */
-function candidateKey(s){ return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function verdictKey(s){ return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+/* One candidate row, by player id or by the name on the pick. */
+function candidateRow(rid, pid, name){
+  const want = playerKey(name);
+  return (sheets.sleeper_candidates || []).find(row => {
+    if(!sameRoster(row.roster_id, rid)) return false;
+    if(pid && String(row.player_id || '').trim() === String(pid)) return true;
+    return !!want && playerKey(row.player_name) === want;
+  }) || null;
+}
 
 function candidateRulings(rid){
   const byId = {}, byName = {};
   (sheets.sleeper_candidates || []).forEach(row => {
     if(!sameRoster(row.roster_id, rid)) return;
-    const verdict = candidateKey(row.eligible);
+    const verdict = verdictKey(row.eligible);
     // Blank means the commissioner hasn't looked at it — leave it to the data.
     if(!verdict) return;
     const ok = verdict !== 'n' && verdict !== 'no' && verdict !== 'false' && verdict !== '0';
     const pid = String(row.player_id || '').trim();
     if(pid) byId[pid] = ok;
-    const nm = candidateKey(row.player_name);
+    const nm = playerKey(row.player_name);
     if(nm) byName[nm] = ok;
   });
   return { byId, byName, any: Object.keys(byId).length + Object.keys(byName).length > 0 };
@@ -552,7 +562,7 @@ function eligibleIds(rid){
   heistElig(rid).filter(pid => owned.has(pid)).forEach(pid => {
     const verdict = rule.byId[pid] !== undefined
       ? rule.byId[pid]
-      : rule.byName[candidateKey(pName(pid))];
+      : rule.byName[playerKey(pName(pid))];
     if(verdict === false) return;
     seen.add(pid); out.push(pid);
   });
@@ -566,7 +576,7 @@ function eligibleIds(rid){
     Object.keys(rule.byName).forEach(nm => {
       if(rule.byName[nm] !== true) return;
       [...owned].forEach(pid => {
-        if(seen.has(pid) || candidateKey(pName(pid)) !== nm) return;
+        if(seen.has(pid) || playerKey(pName(pid)) !== nm) return;
         seen.add(pid); out.push(pid);
       });
     });
@@ -1477,17 +1487,26 @@ function buildSleeperGame(panel, g){
 
   rosters.forEach(roster => {
     const rid = roster.roster_id;
-    const elig = heistElig(rid);
     const sheetPick = sheetPicks.find(row => sameRoster(row.roster_id, rid));
-    const pickedPid = sheetPick ? (elig.find(pid => pName(pid) === sheetPick.player_name) || '') : '';
+    const pickedPid = sheetPick
+      ? ((roster.players || []).find(pid => playerKey(pName(pid)) === playerKey(sheetPick.player_name)) || '')
+      : '';
 
-    // Baseline: the sheet wins if the commissioner entered one, because league
-    // matchup data only covers weeks the player was rostered by somebody — the
-    // truest sleepers sit on waivers in W1-4 and would otherwise score nothing.
+    /* Baseline, in order of trust:
+         1. a number typed into sleeper_picks — the commissioner overruling
+         2. the candidates tab, which averages the games he actually PLAYED in
+            W1-4 using the NFL stats feed, scored with this league's settings
+         3. league matchup data, which only covers weeks somebody rostered him
+       Three is a poor last resort: the truest sleepers sat on waivers in W1-4
+       and would score a baseline of nothing. Run the seed and it never applies. */
     const sheetBaseline = sheetPick ? parseFloat(sheetPick.baseline) : NaN;
+    const cand = candidateRow(rid, pickedPid, sheetPick && sheetPick.player_name);
+    const candBaseline = cand ? parseFloat(cand.baseline) : NaN;
     let baseAvg = null;
     if(!isNaN(sheetBaseline)){
       baseAvg = sheetBaseline;
+    } else if(!isNaN(candBaseline)){
+      baseAvg = candBaseline;
     } else {
       const baseScores = [1,2,3,4].map(w => {
         for(const m of (matchups[w] || [])){
@@ -1564,7 +1583,7 @@ function buildEligibilityCard(panel, g){
     ? 'Declarations open ' + new Date(opensAt).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
     : 'Declare yours on the Submit page';
   const ruled = (sheets.sleeper_candidates || []).length
-    ? 'Added in W1–4, still rostered, confirmed by the commissioner'
+    ? 'Added in W1–4, still rostered, and played at least 2 of Weeks 1–4'
     : 'Added in W1–4 and still rostered';
   card.innerHTML = `<div class="card-head"><div>
       <div class="card-title" style="color:var(--g)">Eligible Acquisitions</div>
@@ -2692,8 +2711,8 @@ function buildSubmitPanel(g){
     const ruledOut = sub.source === 'acquisitions' ? rulingsAgainst(myRoster()) : [];
     body = `<div class="card-empty"><div class="icon">🤷</div>
       No eligible players.${ruledOut.length
-        ? ` The commissioner ruled out ${esc(listify(ruledOut))} — the Sleeper needs a
-            player who was active for at least two of Weeks 1 to 4.`
+        ? ` ${esc(listify(ruledOut))} ${ruledOut.length === 1 ? "doesn't" : "don't"} qualify —
+            the Sleeper needs a player who played at least two of Weeks 1 to 4.`
         : sub.source === 'acquisitions'
           ? ' This fills in once you add someone in Weeks 1–4.' : ''}</div>`;
   } else {
