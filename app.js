@@ -23,7 +23,8 @@ let NAME_ALIASES, WEEK1_DATE, TOPGUN_RECORD, DEADLINES, GAMES = [];
 
 /* Runtime state */
 let rosters = [], users = [], matchups = {}, transactions = {}, players = {};
-let sheets = { tactician: [], long_game: [], sleeper_picks: [], turducken: [], meta: {} };
+let sheets = { tactician: [], long_game: [], sleeper_picks: [], turducken: [], meta: {},
+               sleeper_candidates: [] };
 let isTest = false;
 let saved = {};          // re-read in applyConfig once STORE exists
 let histData = {};
@@ -514,6 +515,91 @@ function heistElig(rid){
   }));
   return [...s];
 }
+
+/* The commissioner's ruling, from the sleeper_candidates tab.
+   Transactions can't settle the two-games-played rule — Sleeper only reports a
+   player's points for weeks somebody owned him, so "didn't play" and "wasn't
+   rostered" look the same. That tab is where the call gets made. Rows are
+   keyed by player_id, falling back to the name for a row typed by hand. */
+function candidateKey(s){ return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+function candidateRulings(rid){
+  const byId = {}, byName = {};
+  (sheets.sleeper_candidates || []).forEach(row => {
+    if(!sameRoster(row.roster_id, rid)) return;
+    const verdict = candidateKey(row.eligible);
+    // Blank means the commissioner hasn't looked at it — leave it to the data.
+    if(!verdict) return;
+    const ok = verdict !== 'n' && verdict !== 'no' && verdict !== 'false' && verdict !== '0';
+    const pid = String(row.player_id || '').trim();
+    if(pid) byId[pid] = ok;
+    const nm = candidateKey(row.player_name);
+    if(nm) byName[nm] = ok;
+  });
+  return { byId, byName, any: Object.keys(byId).length + Object.keys(byName).length > 0 };
+}
+
+/* Everyone this roster may still declare: added in W1-4, still owned, and not
+   ruled out by the commissioner. A row marked Y for a player the transaction
+   scan missed is added back, as long as he really is on the roster. */
+function eligibleIds(rid){
+  const ros = rosters.find(r => sameRoster(r.roster_id, rid));
+  const owned = new Set((ros && ros.players) || []);
+  const rule = candidateRulings(rid);
+  const out = [];
+  const seen = new Set();
+
+  heistElig(rid).filter(pid => owned.has(pid)).forEach(pid => {
+    const verdict = rule.byId[pid] !== undefined
+      ? rule.byId[pid]
+      : rule.byName[candidateKey(pName(pid))];
+    if(verdict === false) return;
+    seen.add(pid); out.push(pid);
+  });
+
+  if(rule.any){
+    Object.keys(rule.byId).forEach(pid => {
+      if(rule.byId[pid] !== true || seen.has(pid) || !owned.has(pid)) return;
+      seen.add(pid); out.push(pid);
+    });
+    // A hand-typed row with no player_id — match it against the roster by name.
+    Object.keys(rule.byName).forEach(nm => {
+      if(rule.byName[nm] !== true) return;
+      [...owned].forEach(pid => {
+        if(seen.has(pid) || candidateKey(pName(pid)) !== nm) return;
+        seen.add(pid); out.push(pid);
+      });
+    });
+  }
+  return out;
+}
+
+/* Same list, as display names, sorted — what the three eligibility views show. */
+function eligibleNames(rid){
+  return eligibleIds(rid)
+    .map(pid => pName(pid))
+    .filter(n => n && !/^\d+$/.test(n))
+    .sort();
+}
+
+/* Players this roster acquired in W1-4 and still owns, but can't declare.
+   Worth saying out loud — otherwise a manager just sees an empty picker. */
+function rulingsAgainst(ros){
+  if(!ros) return [];
+  const ok = new Set(eligibleIds(ros.roster_id));
+  const owned = new Set(ros.players || []);
+  return heistElig(ros.roster_id)
+    .filter(pid => owned.has(pid) && !ok.has(pid))
+    .map(pid => pName(pid))
+    .filter(n => n && !/^\d+$/.test(n))
+    .sort();
+}
+
+function listify(arr){
+  if(arr.length <= 1) return arr[0] || '';
+  if(arr.length === 2) return `${arr[0]} and ${arr[1]}`;
+  return `${arr.slice(0, -1).join(', ')} and ${arr[arr.length - 1]}`;
+}
 function saveStore(){ try { localStorage.setItem(STORE, JSON.stringify(saved)); } catch(e){} }
 function capSt(gameId, arr){ window._standings[gameId] = arr; }
 
@@ -667,6 +753,7 @@ async function loadSheets(){
       sheets.long_game     = data.tabs.long_game     || [];
       sheets.sleeper_picks = data.tabs.sleeper_picks || [];
       sheets.turducken     = data.tabs.turducken     || [];
+      sheets.sleeper_candidates = data.tabs.sleeper_candidates || [];
       const mo = {};
       (data.tabs.meta || []).forEach(r2 => { if(r2.key) mo[r2.key] = r2.value; });
       sheets.meta = mo;
@@ -684,6 +771,7 @@ async function loadSheets(){
   ]);
   sheets.tactician = tac; sheets.long_game = lng;
   sheets.sleeper_picks = slp; sheets.turducken = trd;
+  sheets.sleeper_candidates = [];   // CSV fallback predates this tab
   const mo = {};
   met.forEach(r => { if(r.key) mo[r.key] = r.value; });
   sheets.meta = mo;
@@ -1440,15 +1528,7 @@ function buildEligibilityCard(panel, g){
   if(dl !== null && dl <= Date.now()) return;
 
   const namesReady = Object.keys(players).length > 0;
-  const rows = rosters.map(r => {
-    const owned = new Set(r.players || []);
-    const list = heistElig(r.roster_id)
-      .filter(pid => owned.has(pid))
-      .map(pid => pName(pid))
-      .filter(n => n && n !== String(n).match(/^\d+$/)?.[0])
-      .sort();
-    return { r, list };
-  });
+  const rows = rosters.map(r => ({ r, list: eligibleNames(r.roster_id) }));
 
   const anyone = rows.some(x => x.list.length);
   const card = document.createElement('div');
@@ -1457,9 +1537,12 @@ function buildEligibilityCard(panel, g){
   const sub = opensAt && Date.now() < opensAt
     ? 'Declarations open ' + new Date(opensAt).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
     : 'Declare yours on the Submit page';
+  const ruled = (sheets.sleeper_candidates || []).length
+    ? 'Added in W1–4, still rostered, confirmed by the commissioner'
+    : 'Added in W1–4 and still rostered';
   card.innerHTML = `<div class="card-head"><div>
       <div class="card-title" style="color:var(--g)">Eligible Acquisitions</div>
-      <div class="card-sub">Added in W1–4 and still rostered · ${esc(sub)}</div>
+      <div class="card-sub">${esc(ruled)} · ${esc(sub)}</div>
     </div></div>`;
 
   if(!namesReady){
@@ -2460,9 +2543,8 @@ function submissionOptions(g){
   const src = g.submission.source;
   let ids = [];
   if(src === 'acquisitions'){
-    // Added in W1-4 *and* still owned — the rules require both.
-    const owned = new Set(mr.players || []);
-    ids = heistElig(mr.roster_id).filter(pid => owned.has(pid));
+    // Added in W1-4, still owned, and not ruled out on the candidates tab.
+    ids = eligibleIds(mr.roster_id);
   } else {
     ids = (mr.players || []);
   }
@@ -2560,9 +2642,13 @@ function buildSubmitPanel(g){
   } else if(!namesReady){
     body = `<div class="card-empty"><div class="icon">⏳</div>Loading player names…</div>`;
   } else if(!opts.length){
+    const ruledOut = sub.source === 'acquisitions' ? rulingsAgainst(myRoster()) : [];
     body = `<div class="card-empty"><div class="icon">🤷</div>
-      No eligible players yet.${sub.source === 'acquisitions'
-        ? ' This fills in once you add someone in Weeks 1–4.' : ''}</div>`;
+      No eligible players.${ruledOut.length
+        ? ` The commissioner ruled out ${esc(listify(ruledOut))} — the Sleeper needs a
+            player who was active for at least two of Weeks 1 to 4.`
+        : sub.source === 'acquisitions'
+          ? ' This fills in once you add someone in Weeks 1–4.' : ''}</div>`;
   } else {
     body = `<div class="submit-form">
       <p class="submit-help">${esc(sub.help || '')}</p>
@@ -2744,15 +2830,9 @@ function reportEligibility(){
   if(dl !== null && dl <= Date.now()) return null;
   if(!Object.keys(players).length) return null;
 
-  const rows = rosters.map(r => {
-    const owned = new Set(r.players || []);
-    const names = heistElig(r.roster_id)
-      .filter(pid => owned.has(pid))
-      .map(pid => pName(pid))
-      .filter(n => n && !/^\d+$/.test(n))
-      .sort();
-    return { name: tName(r), names };
-  }).filter(x => x.names.length);
+  const rows = rosters
+    .map(r => ({ name: tName(r), names: eligibleNames(r.roster_id) }))
+    .filter(x => x.names.length);
 
   return rows.length ? { game: g, rows } : null;
 }
