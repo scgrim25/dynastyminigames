@@ -202,13 +202,13 @@
       "decidedWeek": 14,
       "submission": {
         "label": "Declare your Sleeper pick",
-        "help": "Only players you added in Weeks 1 to 4 who are still on your roster. The window opens once Week 4 is final and closes before Thursday kickoff.",
+        "help": "Players you added in Weeks 1 to 4, still on your roster, who played at least two of those four weeks. The window opens once Week 4 is final and closes before Thursday kickoff.",
         "source": "acquisitions",
         "sheet": "sleeper_picks",
         "field": "player_name",
         "deadlineId": "sleeper",
         "opensAt": "2026-10-06T12:00:00-04:00",
-        "openNote": "Week 4 has to finish before we know who's eligible — only players you added in Weeks 1 to 4 and still own can be declared."
+        "openNote": "Week 4 has to finish before we know who's eligible — a player has to have been added in Weeks 1 to 4, still be on your roster, and have played at least two of those four weeks."
       }
     },
     {
