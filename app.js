@@ -595,6 +595,29 @@ function rulingsAgainst(ros){
     .sort();
 }
 
+/* Nominated players live in the sheet as names, not ids, so ownership has to be
+   checked by name. Tolerate the drift that creeps into a hand-typed cell:
+   punctuation, casing, and the Jr/Sr/III a sheet often leaves off. */
+function playerKey(s){
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, '')
+    .replace(/\s+(jr|sr|ii|iii|iv|v)\s*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/* Is this roster still holding the player they nominated? The Long Game needs
+   him on the roster through Week 17 — drop him and the pick stops counting,
+   though we keep tracking the value so the chart stays honest.
+   Returns null when we can't tell: no name, or player names haven't loaded. */
+function rosterHoldsPlayer(ros, name){
+  const want = playerKey(name);
+  if(!ros || !want) return null;
+  if(!Object.keys(players).length) return null;
+  return (ros.players || []).some(pid => playerKey(pName(pid)) === want);
+}
+
 function listify(arr){
   if(arr.length <= 1) return arr[0] || '';
   if(arr.length === 2) return `${arr[0]} and ${arr[1]}`;
@@ -918,7 +941,7 @@ function closeGameSheet(){
 /* ── OVERVIEW: game cards (leaders merged in) ────────────────────────────── */
 
 function leaderFor(gameId){
-  const arr = window._standings[gameId] || [];
+  const arr = (window._standings[gameId] || []).filter(x => !x.out);
   const lead = arr[0];
   if(!lead) return null;
   const ros = rosters.find(r => String(r.roster_id) === String(lead.rid));
@@ -928,7 +951,10 @@ function leaderFor(gameId){
 function myRankIn(gameId){
   const mr = myRoster();
   if(!mr) return null;
-  const arr = window._standings[gameId] || [];
+  const all = window._standings[gameId] || [];
+  // Knocked out of a game means no rank in it, and nobody ranks behind you.
+  if(all.some(x => x.out && String(x.rid) === String(mr.roster_id))) return null;
+  const arr = all.filter(x => !x.out);
   const idx = arr.findIndex(x => String(x.rid) === String(mr.roster_id));
   return idx < 0 ? null : idx + 1;
 }
@@ -1750,11 +1776,14 @@ function buildLongGame(panel, g){
     const first = vals.find(v => v !== null);
     const last = [...vals].reverse().find(v => v !== null);
     const gain = (first != null && last != null && first !== last) ? (last - first) : null;
-    return { r, row, vals, gain };
+    // Dropped or traded away: still charted, no longer playing for the money.
+    const out = rosterHoldsPlayer(r, row.player_name) === false;
+    return { r, row, vals, gain, out };
   }).sort((a,b) => (b.gain || 0) - (a.gain || 0));
 
   capSt('longgame', rows.filter(x => x.gain !== null)
-    .map(x => ({ rid: x.r.roster_id, val: (x.gain > 0 ? '+' : '') + x.gain.toLocaleString() })));
+    .map(x => ({ rid: x.r.roster_id, out: x.out,
+                 val: (x.gain > 0 ? '+' : '') + x.gain.toLocaleString() })));
 
   // Sparklines share one scale, centred on zero, so the steepness of a line
   // actually means something. Scaling each row to its own min/max made every
@@ -1772,10 +1801,14 @@ function buildLongGame(panel, g){
   card.innerHTML = gameCardHead(g, null, 'KTC Superflex value · W1–W17 incl. playoffs');
 
   const t = mkTable(['','Team','Player','>W1','>Current','>Trend','>Gain']);
-  rows.forEach(({ r, row, vals, gain }, i) => {
-    const lead = i === 0 && gain !== null && gain > 0;
+  const topLive = rows.findIndex(x => !x.out && x.gain !== null && x.gain > 0);
+  let rank = 0;
+  rows.forEach(({ r, row, vals, gain, out }, i) => {
+    const lead = i === topLive;
+    if(!out) rank++;
     const tr = document.createElement('tr');
     if(lead) tr.className = 'leader-row';
+    if(out) tr.className = 'row-out';
 
     const nonNull = vals.filter(v => v !== null);
     const first = nonNull.length ? nonNull[0] : null;
@@ -1791,7 +1824,8 @@ function buildLongGame(panel, g){
         started = true;
       });
     }
-    const sparkColor = gain > 0 ? 'var(--c1)' : gain < 0 ? 'var(--c3)' : 'var(--text3)';
+    const sparkColor = out ? 'var(--text3)'
+      : gain > 0 ? 'var(--c1)' : gain < 0 ? 'var(--c3)' : 'var(--text3)';
     const spark = path
       ? `<svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" role="img"
            aria-label="${gain !== null ? (gain > 0 ? 'Up ' : 'Down ') + Math.abs(gain) : 'No change'} since nomination">
@@ -1800,17 +1834,30 @@ function buildLongGame(panel, g){
          </svg>`
       : '<span style="color:var(--text3);font-size:11px;">—</span>';
 
+    const gainColor = out ? 'var(--text3)'
+      : gain > 0 ? 'var(--c1)' : gain < 0 ? 'var(--c3)' : 'var(--text3)';
     tr.innerHTML = `
-      <td class="rank-num">${i+1}</td>
+      <td class="rank-num">${out ? '—' : rank}</td>
       ${teamCell(r)}
-      <td class="tdc" style="font-weight:500;font-size:13px;">${esc(row.player_name || '—')}</td>
+      <td class="tdc" style="font-weight:500;font-size:13px;">${esc(row.player_name || '—')}${
+        out ? ` <span class="tag-out" title="No longer on this roster — the Long Game needs him through Week 17. Still tracked, not eligible to win.">DROPPED</span>` : ''}</td>
       <td class="mv r">${nonNull[0]?.toLocaleString() || '—'}</td>
       <td class="mv r">${[...vals].reverse().find(v => v !== null)?.toLocaleString() || '—'}</td>
       <td style="padding:6px 14px;">${spark}</td>
-      <td class="mv r bold" style="color:${gain > 0 ? 'var(--c1)' : gain < 0 ? 'var(--c3)' : 'var(--text3)'};">${lead ? '<span class="badge badge-green">👑</span> ' : ''}${gain !== null ? (gain > 0 ? '+' : '') + gain.toLocaleString() : '—'}</td>`;
+      <td class="mv r bold" style="color:${gainColor};">${lead ? '<span class="badge badge-green">👑</span> ' : ''}${gain !== null ? (gain > 0 ? '+' : '') + gain.toLocaleString() : '—'}</td>`;
     t.querySelector('tbody').appendChild(tr);
   });
   card.appendChild(t);
+
+  const dropped = rows.filter(x => x.out).length;
+  if(dropped){
+    const note = document.createElement('div');
+    note.className = 'leader-note';
+    note.textContent = dropped === 1
+      ? 'One nomination is marked DROPPED — that player is no longer on the roster that picked him. Still tracked, no longer eligible to win.'
+      : `${dropped} nominations are marked DROPPED — those players are no longer on the rosters that picked them. Still tracked, no longer eligible to win.`;
+    card.appendChild(note);
+  }
 
   // Expandable full weekly grid
   const wrap = document.createElement('div');
@@ -2797,11 +2844,20 @@ function reportBoards(){
       const ros = rosters.find(r => sameRoster(r.roster_id, e.rid));
       if(!ros) return null;
       const srow = sub ? sub.find(x => sameRoster(x.roster_id, e.rid)) : null;
-      return { name: tName(ros), val: e.val, sub: srow ? (srow.player_name || '') : '' };
+      return { name: tName(ros), val: e.val, out: !!e.out,
+               sub: srow ? (srow.player_name || '') : '' };
     }).filter(Boolean);
     // A board with players listed is worth showing in full.
     return { game: g, rows, full: rows.some(r => r.sub) };
   });
+}
+
+/* A game is over once its deciding week has been played. The report leads with
+   the winner rather than burying them at the top of another table. */
+function reportDecided(board, week){
+  const dw = board.game.decidedWeek;
+  if(!dw || week < dw || !weekPlayed(dw)) return false;
+  return board.rows.some(r => !r.out);
 }
 
 /* Before declarations close, list what each manager could still pick.
@@ -2901,14 +2957,26 @@ function reportText(week, { top, upcoming }){
   lines.push('');
   if(top) lines.push(`🔥 Top score: ${top.name} — ${top.points.toFixed(1)}`);
   const all = reportBoards();
-  all.filter(b => b.rows.length).forEach(b => {
+  const live = all.filter(b => b.rows.length);
+
+  live.filter(b => reportDecided(b, week)).forEach(b => {
+    const champ = b.rows.filter(r => !r.out)[0];
+    lines.push('');
+    lines.push(`👑 ${b.game.name.toUpperCase()} — WINNER: ${champ.name} (${champ.val}) · ${b.game.payoutLabel}`);
+  });
+
+  live.filter(b => !reportDecided(b, week)).forEach(b => {
     lines.push('');
     lines.push(`${b.game.name} (${b.game.payoutLabel})`);
     const shown = b.full ? b.rows : b.rows.slice(0, 3);
-    shown.forEach((r, i) => lines.push(
-      `  ${i + 1}. ${r.name}${r.sub ? ' — ' + r.sub : ''} ${r.val}`));
+    let rank = 0;
+    shown.forEach(r => {
+      if(!r.out) rank++;
+      lines.push(`  ${r.out ? '—' : rank + '.'} ${r.name}${
+        r.sub ? ' — ' + r.sub + (r.out ? ' (dropped)' : '') : ''} ${r.val}`);
+    });
     const rest = b.full ? [] : b.rows.slice(3);
-    if(rest.length) lines.push('  ' + rest.map((r, i) => `${i + 4}. ${r.name}`).join(', '));
+    if(rest.length) lines.push('  ' + rest.map((r, i) => `${r.out ? '—' : i + 4 + '.'} ${r.name}`).join(', '));
   });
   const elig = reportEligibility();
   if(elig){
@@ -2937,7 +3005,9 @@ function cssVar(name){
 function drawReport(week, { top, upcoming }){
   const all = reportBoards();
   const elig = reportEligibility();
-  const boards  = all.filter(b => b.rows.length);
+  const live = all.filter(b => b.rows.length);
+  const won    = live.filter(b => reportDecided(b, week));
+  const boards = live.filter(b => !reportDecided(b, week));
   // A game with an eligibility block is already covered — don't also list it
   // under "still to come", which reads as a contradiction.
   const pending = all.filter(b => !b.rows.length && !(elig && elig.game.id === b.game.id));
@@ -2946,7 +3016,11 @@ function drawReport(week, { top, upcoming }){
   // Measure first so the canvas is exactly as tall as the content.
   const HEAD = 300;
   const GAME_TITLE = 52, TOP_ROW = 40, REST_LINE = 30, GAME_GAP = 22;
+  // Card body, plus room for the next heading's colour bar, which sits 20px
+  // above its own baseline — without the gap they touch.
+  const WON_CARD = 180, WON_GAP = 40;
   let H = HEAD;
+  won.forEach(b => { H += WON_CARD + WON_GAP; });
   boards.forEach(b => {
     H += GAME_TITLE;
     if(b.full){
@@ -3009,6 +3083,44 @@ function drawReport(week, { top, upcoming }){
   }
   y += 34; rule(y); y += 40;
 
+  // Decided games lead the page. The winner is the headline, not a table row.
+  won.forEach(b => {
+    const col = cssVar('--game-' + b.game.color) || ACCENT;
+    const standing = b.rows.filter(r => !r.out);
+    const champ = standing[0];
+
+    c.fillStyle = SURF;
+    roundRect(c, PAD, y, W - PAD * 2, WON_CARD, 14); c.fill();
+    c.fillStyle = col;
+    roundRect(c, PAD, y, 8, WON_CARD, 4); c.fill();
+
+    const L = PAD + 36;
+    c.fillStyle = col; c.font = '700 21px "Roboto Mono", monospace';
+    c.fillText(b.game.name.toUpperCase() + '  ·  WINNER', L, y + 40);
+
+    c.fillStyle = TEXT3; c.font = '500 22px "Roboto Mono", monospace';
+    c.textAlign = 'right';
+    c.fillText(b.game.payoutLabel, W - PAD - 36, y + 40);
+    c.textAlign = 'left';
+
+    const champFont = '900 60px Fraunces, Georgia, serif';
+    c.fillStyle = TEXT; c.font = champFont;
+    c.fillText(trunc(champ.name, champFont, W - PAD * 2 - 300), L, y + 106);
+
+    c.fillStyle = col; c.font = '700 40px "Roboto Mono", monospace';
+    c.textAlign = 'right';
+    c.fillText(champ.val, W - PAD - 36, y + 106);
+    c.textAlign = 'left';
+
+    const rest = standing.slice(1, 3)
+      .map((r, i) => `${i + 2}. ${r.name} ${r.val}`).join('    ');
+    if(rest){
+      c.fillStyle = TEXT3; c.font = '400 21px "IBM Plex Sans", sans-serif';
+      c.fillText(trunc(rest, '400 21px "IBM Plex Sans", sans-serif', W - PAD * 2 - 72), L, y + 146);
+    }
+    y += WON_CARD + WON_GAP;
+  });
+
   boards.forEach(b => {
     const col = cssVar('--game-' + b.game.color) || ACCENT;
 
@@ -3022,19 +3134,22 @@ function drawReport(week, { top, upcoming }){
     y += GAME_TITLE - 20;
 
     const shown = b.full ? b.rows : b.rows.slice(0, 3);
+    const firstLive = b.rows.findIndex(r => !r.out);
+    let rank = 0;
     shown.forEach((r, i) => {
-      const lead = i === 0;
+      const lead = i === firstLive;
+      if(!r.out) rank++;
       if(lead){ c.fillStyle = SURF; roundRect(c, PAD + 12, y - 16, W - PAD * 2 - 12, 34, 8); c.fill(); }
       c.fillStyle = lead ? col : TEXT3;
       c.font = (lead ? '700' : '500') + ' 24px "Roboto Mono", monospace';
-      c.fillText(String(i + 1), PAD + 24, y + 8);
+      c.fillText(r.out ? '—' : String(rank), PAD + 24, y + 8);
 
       // Player sits in its own column so the rows line up regardless of how
       // long a team name is.
       const SUB_X = PAD + 420;
       const nameFont = (lead ? '700' : '500') + ' 26px "IBM Plex Sans", sans-serif';
       const nameMax = r.sub ? (SUB_X - (PAD + 60) - 16) : 620;
-      c.fillStyle = lead ? TEXT : TEXT2;
+      c.fillStyle = r.out ? TEXT3 : lead ? TEXT : TEXT2;
       c.font = nameFont;
       c.fillText(trunc(r.name, nameFont, nameMax), PAD + 60, y + 8);
 
@@ -3042,10 +3157,11 @@ function drawReport(week, { top, upcoming }){
         const subFont = 'italic 400 23px "IBM Plex Sans", sans-serif';
         c.fillStyle = TEXT3;
         c.font = subFont;
-        c.fillText(trunc(r.sub, subFont, W - PAD - 150 - SUB_X), SUB_X, y + 8);
+        const tail = r.out ? '  ·  dropped' : '';
+        c.fillText(trunc(r.sub + tail, subFont, W - PAD - 150 - SUB_X), SUB_X, y + 8);
       }
 
-      c.fillStyle = lead ? col : TEXT2;
+      c.fillStyle = r.out ? TEXT3 : lead ? col : TEXT2;
       c.font = (lead ? '700' : '500') + ' 25px "Roboto Mono", monospace';
       c.textAlign = 'right';
       c.fillText(r.val, W - PAD - 22, y + 8);
@@ -3058,7 +3174,7 @@ function drawReport(week, { top, upcoming }){
       c.fillStyle = TEXT3; c.font = '400 20px "IBM Plex Sans", sans-serif';
       for(let i = 0; i < rest.length; i += 3){
         const part = rest.slice(i, i + 3)
-          .map((r, k) => `${i + k + 4}. ${r.name} ${r.val}`)
+          .map((r, k) => `${r.out ? '—' : i + k + 4}. ${r.name} ${r.val}`)
           .join('    ');
         c.fillText(trunc(part, '400 20px "IBM Plex Sans", sans-serif', W - PAD * 2 - 24), PAD + 24, y + 6);
         y += REST_LINE;
