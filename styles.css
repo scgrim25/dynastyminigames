@@ -429,6 +429,71 @@ body.is-landing{padding-bottom:0;}
 .game-leader.pending .game-leader-name{color:var(--text3);font-weight:500;}
 .game-leader.pending .game-leader-val{color:var(--text3);}
 
+/* ── DECIDED GAME ───────────────────────────────────────────────────────────
+   A finished game stops being a pitch and becomes a result, so the card drops
+   the blurb and the week range and fills with the game's own colour. Every
+   --game-* value is a dark saturated tone, so white type sits on all of them.
+   The rules panel underneath stays on the normal surface — it's reference, and
+   reversed body text is harder to read. */
+.game-card.won{
+  background:var(--g);border-color:var(--g);
+  box-shadow:var(--shadow-md);
+  box-shadow:0 6px 20px -6px color-mix(in srgb,var(--g) 55%,transparent),var(--shadow-md);
+}
+/* The header absorbs the card's spare height, so centre the block in it rather
+   than letting FINAL sit on top of a pool of empty colour. */
+.game-card.won .game-card-open{
+  border-left-width:0;padding:22px 20px;
+  display:flex;flex-direction:column;justify-content:center;
+}
+.won-eyebrow{
+  display:block;font-family:var(--mono);font-size:11px;letter-spacing:2px;
+  text-transform:uppercase;color:rgba(255,255,255,.72);margin-bottom:6px;
+}
+.won-final{
+  display:block;font-family:var(--display);font-size:52px;font-weight:900;
+  line-height:.92;letter-spacing:-1.5px;color:#fff;
+}
+.won-sub{
+  display:block;font-family:var(--mono);font-size:10px;letter-spacing:1.5px;
+  text-transform:uppercase;color:rgba(255,255,255,.65);margin-top:8px;
+}
+.game-card.won .game-card-open:hover .won-final{
+  text-decoration:underline;text-underline-offset:5px;text-decoration-thickness:3px;
+}
+
+.game-leader-avwrap{position:relative;flex-shrink:0;line-height:0;}
+/* Top-left, away from the label beside it — on the right it crowded the text. */
+.won-crown{
+  position:absolute;top:-8px;left:-6px;font-size:15px;line-height:1;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));
+}
+.game-leader.won{
+  background:rgba(255,255,255,.13);
+  border-top:1px solid rgba(255,255,255,.28);
+  padding-top:13px;padding-bottom:13px;
+}
+.game-leader.won .game-leader-av,.game-leader.won .game-leader-ph{
+  width:38px;height:38px;border-color:rgba(255,255,255,.55);
+  background:rgba(255,255,255,.2);
+}
+.game-leader.won .game-leader-label{color:rgba(255,255,255,.75);font-weight:700;}
+.game-leader.won .game-leader-name{
+  font-family:var(--display);font-size:18px;font-weight:700;color:#fff;
+}
+.game-leader.won .game-leader-val{font-size:15px;color:#fff;}
+.game-leader.won .me-flag{background:#fff;color:var(--g);}
+
+.game-card.won .game-footer{
+  background:rgba(0,0,0,.16);border-top:1px solid rgba(255,255,255,.22);
+  padding-top:12px;padding-bottom:12px;
+}
+.game-card.won .game-payout{font-size:34px;color:#fff;line-height:1;}
+.game-card.won .game-myrank{color:rgba(255,255,255,.7);}
+.game-card.won .game-myrank strong{color:#fff;}
+.game-card.won .expand-btn{color:rgba(255,255,255,.85);border-color:rgba(255,255,255,.4);}
+.game-card.won .expand-btn:hover{color:#fff;border-color:#fff;}
+
 .game-footer{
   padding:10px 20px;background:var(--surface2);border-top:1px solid var(--border);
   display:flex;align-items:center;justify-content:space-between;gap:10px;
