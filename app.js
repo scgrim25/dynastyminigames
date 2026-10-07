@@ -16,6 +16,12 @@
 const API = 'https://api.sleeper.app/v1';
 const $ = id => document.getElementById(id);
 
+/* Bump this whenever you push. Open the console on the live site and the first
+   line tells you which build is actually running — the quickest way to tell a
+   real bug from a browser or Cloudflare cache still serving yesterday's file. */
+const APP_BUILD = '2026-10-06.4';
+console.log('%cMiniGames build ' + APP_BUILD, 'font-weight:700');
+
 /* Config-derived globals, populated by applyConfig() before the app boots. */
 let LEAGUE_CONFIG = null, LEAGUES_INDEX = [], SITE = null;
 let SLUG, LIVE_ID, TEST_ID, STORE, SEASON_IDS, SHEETS, SHEETS_API;
@@ -980,12 +986,17 @@ function buildGames(){
 
     const lead = leaderFor(g.id);
     const rank = myRankIn(g.id);
+    const won = gameDecided(g);
+    if(won) card.className += ' won';
 
     const leaderHtml = lead ? `
-      <div class="game-leader">
-        ${avHtml(avatarUrl(lead.ros), 'game-leader-av', 'game-leader-ph')}
+      <div class="game-leader${won ? ' won' : ''}">
+        <div class="game-leader-avwrap">
+          ${avHtml(avatarUrl(lead.ros), 'game-leader-av', 'game-leader-ph')}
+          ${won ? '<span class="won-crown" aria-hidden="true">👑</span>' : ''}
+        </div>
         <div class="game-leader-info">
-          <div class="game-leader-label">Leading</div>
+          <div class="game-leader-label">${won ? 'Winner' : 'Leading'}</div>
           <div class="game-leader-name">${esc(tName(lead.ros))}${lead.ros.owner_id === myTeamId() ? '<span class="me-flag">YOU</span>' : ''}</div>
         </div>
         <div class="game-leader-val">${esc(lead.val)}</div>
@@ -1003,13 +1014,21 @@ function buildGames(){
       ? `<span class="game-myrank">You: <strong>#${rank}</strong></span>`
       : '';
 
+    const head = won
+      ? `<button class="game-card-open" data-game="${esc(g.id)}">
+           <span class="won-eyebrow">${esc(g.name)}</span>
+           <span class="won-final">FINAL</span>
+           <span class="won-sub">Decided Week ${g.decidedWeek}</span>
+         </button>`
+      : `<button class="game-card-open" data-game="${esc(g.id)}">
+           <span class="game-pill">${esc(g.typeLabel)}</span>
+           <span class="game-title">${esc(g.name)}</span>
+           <span class="game-weeks">${esc(g.weeks)}</span>
+           <span class="game-desc">${esc(g.blurb)}</span>
+         </button>`;
+
     card.innerHTML = `
-      <button class="game-card-open" data-game="${esc(g.id)}">
-        <span class="game-pill">${esc(g.typeLabel)}</span>
-        <span class="game-title">${esc(g.name)}</span>
-        <span class="game-weeks">${esc(g.weeks)}</span>
-        <span class="game-desc">${esc(g.blurb)}</span>
-      </button>
+      ${head}
       ${leaderHtml}
       <div class="game-footer">
         <div><span class="game-payout">${g.payoutLabel}</span>${rankHtml}</div>
@@ -2871,8 +2890,15 @@ function reportBoards(){
   });
 }
 
-/* A game is over once its deciding week has been played. The report leads with
-   the winner rather than burying them at the top of another table. */
+/* A game is over once its deciding week has been played and somebody leads it. */
+function gameDecided(g){
+  const dw = g && g.decidedWeek;
+  if(!dw || !weekPlayed(dw)) return false;
+  return !!leaderFor(g.id);
+}
+
+/* Same question for the report, which is pinned to one week — a Week 2 report
+   shouldn't crown the winner of a game that ends in Week 4. */
 function reportDecided(board, week){
   const dw = board.game.decidedWeek;
   if(!dw || week < dw || !weekPlayed(dw)) return false;
@@ -3333,11 +3359,14 @@ function downloadReportImage(){
 /* ═══ INIT ══════════════════════════════════════════════════════════════════ */
 
 function buildAll(){
+  // Game pages first: their builders are what populate window._standings, and
+  // the overview cards read it for the leader line and the decided state.
+  // Built the other way round, the first paint says "nothing to score yet".
+  buildGamePages();
   buildGames();
   buildMyStrip();
   buildCountdowns();
   buildCalendar();
-  buildGamePages();
   buildReportWeeks();
   maybePromptTeam();
   renderRoute();
